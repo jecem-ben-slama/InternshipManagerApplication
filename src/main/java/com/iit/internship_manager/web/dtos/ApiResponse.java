@@ -1,24 +1,24 @@
 package com.iit.internship_manager.web.dtos;
 
-import lombok.*;
-import java.time.Instant;
-import java.util.Map;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-@Getter
-@Setter
-@Builder
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
 public class ApiResponse<T> {
-    private String status; // "success" or "error"
+    private boolean success;
+    private String message;
     private T data;
-    private Map<String, Object> meta;
 
+    // This is the method the Controller is looking for
+    public static <T> ApiResponse<T> success(String message, T data) {
+        return new ApiResponse<>(true, message, data);
+    }
+
+    // Keep this one too for simpler cases
     public static <T> ApiResponse<T> success(T data) {
-        return ApiResponse.<T>builder()
-                .status("success")
-                .data(data)
-                .meta(Map.of(
-                        "timestamp", Instant.now().toString(),
-                        "version", "1.0"))
-                .build();
+        return new ApiResponse<>(true, "Operation successful", data);
     }
 }

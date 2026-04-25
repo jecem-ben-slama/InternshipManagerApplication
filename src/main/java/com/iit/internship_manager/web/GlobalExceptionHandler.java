@@ -29,6 +29,7 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "System Error",
                 "An unexpected error occurred.");
     }
+    
 
     private ResponseEntity<ApiErrorResponse> buildErrorResponse(HttpStatus status, String code, String title,
             String detail) {

@@ -7,17 +7,24 @@ import lombok.*;
 @Entity
 @Table(name = "utilisateurs")
 @Inheritance(strategy = InheritanceType.JOINED)
+@DiscriminatorColumn(name = "user_type", discriminatorType = DiscriminatorType.STRING)
 @Getter
 @Setter
 @NoArgsConstructor
+@AllArgsConstructor
 public abstract class Utilisateur {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    private String nom;
-    private String prenom;
+
     @Column(unique = true, nullable = false)
     private String email;
+
+    private String password;
+
     @Enumerated(EnumType.STRING)
     private Role role;
+
+    private String nom;
+    private String prenom;
 }

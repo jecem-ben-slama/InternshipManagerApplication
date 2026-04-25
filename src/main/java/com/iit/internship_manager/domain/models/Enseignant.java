@@ -7,14 +7,18 @@ import java.util.*;
 
 @Entity
 @Table(name = "enseignants")
+@DiscriminatorValue("TEACHER")
 @Getter
 @Setter
 @NoArgsConstructor
+@AllArgsConstructor
 public class Enseignant extends Utilisateur {
+
     private boolean isResponsablePFE = false;
 
     @ElementCollection(targetClass = SpecialiteType.class)
     @CollectionTable(name = "enseignant_specialites", joinColumns = @JoinColumn(name = "enseignant_id"))
     @Enumerated(EnumType.STRING)
+    @Column(name = "specialite")
     private Set<SpecialiteType> specialites = new HashSet<>();
 }
