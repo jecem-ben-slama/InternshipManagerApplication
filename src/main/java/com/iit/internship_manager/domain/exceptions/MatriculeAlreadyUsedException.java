@@ -5,7 +5,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
 @ResponseStatus(HttpStatus.CONFLICT)
-public class MatriculeAlreadyUsedException extends RuntimeException {
+public class MatriculeAlreadyUsedException extends DomainException {
     public MatriculeAlreadyUsedException(String matricule) {
         super("Matricule already registered: " + matricule);
     }
