@@ -7,7 +7,7 @@ import java.util.*;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
-public class EnseignantRegisterRequest extends RegisterRequest {
+public class TeacherRegisterRequest extends RegisterRequest {
 
     // false by default — the client sends true when registering
     // someone who is also responsable PFE at the time of creation.

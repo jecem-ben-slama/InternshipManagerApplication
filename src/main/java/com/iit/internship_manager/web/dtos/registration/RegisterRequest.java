@@ -12,8 +12,8 @@ import lombok.Data;
 )
 @JsonSubTypes({
         @JsonSubTypes.Type(value = AdminRegisterRequest.class, name = "ADMIN_IT"),
-        @JsonSubTypes.Type(value = EtudiantRegisterRequest.class, name = "STUDENT"),
-        @JsonSubTypes.Type(value = EnseignantRegisterRequest.class, name = "TEACHER")
+        @JsonSubTypes.Type(value = StudentRegisterRequest.class, name = "STUDENT"),
+        @JsonSubTypes.Type(value = TeacherRegisterRequest.class, name = "TEACHER")
 })
 @Data
 public abstract class RegisterRequest {

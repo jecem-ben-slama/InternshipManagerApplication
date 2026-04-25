@@ -9,8 +9,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
+import org.springframework.data.domain.Page; // Add this import
 
 @RestController
 @RequestMapping("/api/users")
@@ -36,10 +35,14 @@ public class UserController {
     }
 
     // * get all active users */
-    @GetMapping
-    @PreAuthorize("hasRole('ADMIN_IT')") // Only Admins can see the full user list
-    public ApiResponse<List<UserResponseDTO>> getAllActive() {
-        return ApiResponse.success("Liste des utilisateurs récupérée", userService.findAllActive());
+    @GetMapping("/active/{page}")
+    public ApiResponse<Page<UserResponseDTO>> getAllActive(@PathVariable int page) {
+        // Adjusting for 0-based index if your frontend sends 1, 2, 3...
+        // int adjustedPage = page > 0 ? page - 1 : 0;
+
+        return ApiResponse.success(
+                "Users retrieved successfully",
+                userService.findAllActive(page));
     }
 
     // * deactivate user */

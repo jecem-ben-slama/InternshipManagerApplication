@@ -6,7 +6,7 @@ import com.iit.internship_manager.domain.models.Enseignant;
 import com.iit.internship_manager.infrastucture.mappers.EnseignantMapperImpl;
 import com.iit.internship_manager.repositories.EnseignantRepository;
 import com.iit.internship_manager.web.dtos.*;
-import com.iit.internship_manager.web.dtos.registration.EnseignantRegisterRequest;
+import com.iit.internship_manager.web.dtos.registration.TeacherRegisterRequest;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -15,8 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class EnseignantRegistrationStrategy
-        implements RegistrationStrategy<EnseignantRegisterRequest> {
+public class TeacherRegistrationStrategy
+        implements RegistrationStrategy<TeacherRegisterRequest> {
 
     private final EnseignantRepository enseignantRepository;
     private final PasswordEncoder passwordEncoder;
@@ -29,7 +29,7 @@ public class EnseignantRegistrationStrategy
 
     @Override
     @Transactional
-    public AuthResponse register(EnseignantRegisterRequest req) {
+    public AuthResponse register(TeacherRegisterRequest req) {
         if (enseignantRepository.existsByEmail(req.getEmail())) {
             throw new EmailAlreadyUsedException(req.getEmail());
         }

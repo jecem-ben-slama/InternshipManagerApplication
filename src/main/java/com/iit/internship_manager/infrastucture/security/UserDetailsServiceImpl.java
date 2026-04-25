@@ -31,4 +31,10 @@ public class UserDetailsServiceImpl implements UserDetailsService {
                 true, // accountNonLocked
                 Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + user.getRole().name())));
     }
+    // checks if teacher is responsable or not
+    public boolean isResponsable(String email) {
+        Utilisateur user = utilisateurRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
+        return user.getRole().name().equals("RESPONSABLE");
+    }
 }

@@ -1,11 +1,9 @@
 // UtilisateurRepository.java
 package com.iit.internship_manager.repositories;
-
 import com.iit.internship_manager.domain.models.Utilisateur;
-
-import java.util.List;
 import java.util.Optional;
-
+import org.springframework.data.domain.Page; // Add this import
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface UserRepository extends JpaRepository<Utilisateur, Long> {
@@ -13,7 +11,7 @@ public interface UserRepository extends JpaRepository<Utilisateur, Long> {
     
     Optional<Utilisateur> findByEmailAndActiveTrue(String email);
     
-    List<Utilisateur> findAllByActiveTrue();
+    Page<Utilisateur> findAllByActiveTrue(Pageable pageable);    
     Optional<Utilisateur> findByEmail(String email);
 
 }

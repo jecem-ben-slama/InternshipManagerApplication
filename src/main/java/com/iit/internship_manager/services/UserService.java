@@ -5,44 +5,40 @@ import com.iit.internship_manager.domain.models.Utilisateur;
 import com.iit.internship_manager.repositories.UserRepository;
 import com.iit.internship_manager.web.dtos.UserResponseDTO;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
-import java.util.stream.Collectors;
+import org.springframework.data.domain.Page; // Add this import
+import org.springframework.data.domain.Pageable;
 
 @Service
 @RequiredArgsConstructor
 public class UserService {
 
     private final UserRepository userRepository;
-
-    /**
-     * Finds a single user by their ID and maps them to a DTO.
-     * Uses readOnly = true for better performance.
-     */
+    // * getByID
     @Transactional(readOnly = true)
     public UserResponseDTO findById(Long id) {
         return userRepository.findById(id)
                 .map(UserResponseDTO::fromEntity)
                 .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé avec l'id: " + id, id));
     }
+    // * getAll
 
-    /**
-     * Returns a list of all users who are currently active (active = true).
-     */
     @Transactional(readOnly = true)
-    public List<UserResponseDTO> findAllActive() {
-        return userRepository.findAllByActiveTrue().stream()
-                .map(UserResponseDTO::fromEntity)
-                .collect(Collectors.toList());
-    }
+public Page<UserResponseDTO> findAllActive(int pageNumber) {
+    // Create a page request with 10 items per page
+    Pageable pageable = PageRequest.of(pageNumber, 10);
+    
+    // The repository now returns a Page<Utilisateur>
+    Page<Utilisateur> userPage = userRepository.findAllByActiveTrue(pageable);
+    
+    // Map the Page of entities to a Page of DTOs
+    return userPage.map(UserResponseDTO::fromEntity);
+}
 
-    /**
-     * Soft Delete: Instead of removing the user from the DB, we flip the active
-     * flag.
-     * This prevents data loss while blocking user access.
-     */
+    // * deactivate
+
     @Transactional
     public void delete(Long id) {
         Utilisateur user = userRepository.findById(id)
@@ -52,9 +48,7 @@ public class UserService {
         userRepository.save(user);
     }
 
-    /**
-     * Reactivates a soft-deleted account.
-     */
+//* reactivate
     @Transactional
     public void reactivate(Long id) {
         Utilisateur user = userRepository.findById(id)
@@ -63,10 +57,7 @@ public class UserService {
         user.setActive(true);
         userRepository.save(user);
     }
-
-    /**
-     * Helper to check if an email is already in use by anyone.
-     */
+    // * check if email exists
     @Transactional(readOnly = true)
     public boolean existsByEmail(String email) {
         return userRepository.existsByEmail(email);

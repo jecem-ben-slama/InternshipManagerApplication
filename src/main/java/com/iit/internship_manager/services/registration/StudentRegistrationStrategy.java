@@ -7,7 +7,7 @@ import com.iit.internship_manager.domain.exceptions.MatriculeAlreadyUsedExceptio
 import com.iit.internship_manager.domain.models.Etudiant;
 import com.iit.internship_manager.repositories.EtudiantRepository;
 import com.iit.internship_manager.web.dtos.*;
-import com.iit.internship_manager.web.dtos.registration.EtudiantRegisterRequest;
+import com.iit.internship_manager.web.dtos.registration.StudentRegisterRequest;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -16,8 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class EtudiantRegistrationStrategy
-        implements RegistrationStrategy<EtudiantRegisterRequest> {
+public class StudentRegistrationStrategy
+        implements RegistrationStrategy<StudentRegisterRequest> {
 
     private final EtudiantRepository etudiantRepository;
     private final PasswordEncoder passwordEncoder;
@@ -29,7 +29,7 @@ public class EtudiantRegistrationStrategy
 
     @Override
     @Transactional
-    public AuthResponse register(EtudiantRegisterRequest req) {
+    public AuthResponse register(StudentRegisterRequest req) {
         if (etudiantRepository.existsByEmail(req.getEmail())) {
             throw new EmailAlreadyUsedException(req.getEmail());
         }

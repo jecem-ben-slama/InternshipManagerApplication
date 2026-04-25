@@ -7,7 +7,7 @@ import lombok.*;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
-public class EtudiantRegisterRequest extends RegisterRequest {
+public class StudentRegisterRequest extends RegisterRequest {
 
     @NotBlank
     private String matricule;
