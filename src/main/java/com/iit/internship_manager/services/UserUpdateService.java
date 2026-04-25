@@ -1,8 +1,9 @@
-package com.iit.internship_manager.services.updateUser;
+package com.iit.internship_manager.services;
 
 import com.iit.internship_manager.domain.exceptions.ResourceNotFoundException;
 import com.iit.internship_manager.domain.models.Utilisateur;
 import com.iit.internship_manager.repositories.UserRepository;
+import com.iit.internship_manager.services.updateUser.UserUpdateStrategy;
 import com.iit.internship_manager.web.dtos.UserResponseDTO;
 import com.iit.internship_manager.web.dtos.updateUser.UpdateRequest;
 import lombok.RequiredArgsConstructor;
@@ -24,7 +25,8 @@ public class UserUpdateService {
     public UserResponseDTO update(Long id, UpdateRequest dto) {
         // 1. Fetch the user from the database
         Utilisateur user = userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé avec l'id: " + id, id));
+                // Updated to use the clean constructor: resource name + id
+                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur", id));
 
         // 2. Update common fields (shared by all users)
         user.setNom(dto.getNom());
@@ -38,7 +40,9 @@ public class UserUpdateService {
         updateStrategies.stream()
                 .filter(strategy -> strategy.supports(user, dto))
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Aucune stratégie trouvée pour ce type d'utilisateur"))
+                // You could also create a custom "StrategyNotFoundException" extending
+                // DomainException here
+                .orElseThrow(() -> new RuntimeException("Aucune stratégie trouvée pour ce type d'utilisateur"))
                 .update(user, dto); // <--- Here, the specialist takes over!
 
         // 4. Save and return

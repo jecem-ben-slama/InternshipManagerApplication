@@ -1,7 +1,7 @@
 package com.iit.internship_manager.web.controllers;
 
 import com.iit.internship_manager.services.UserService;
-import com.iit.internship_manager.services.updateUser.UserUpdateService;
+import com.iit.internship_manager.services.UserUpdateService;
 import com.iit.internship_manager.web.dtos.ApiResponse;
 import com.iit.internship_manager.web.dtos.UserResponseDTO;
 import com.iit.internship_manager.web.dtos.updateUser.UpdateRequest;

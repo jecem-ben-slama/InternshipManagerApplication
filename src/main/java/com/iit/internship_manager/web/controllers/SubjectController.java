@@ -89,6 +89,22 @@ public ResponseEntity<ApiResponse<SujetResponseDTO>> updateStatus(
     
     return ResponseEntity.ok(ApiResponse.success("Statut mis à jour", updated));
 }
+//* get sujet by id */
+@GetMapping("/{id}")
+public ResponseEntity<ApiResponse<SujetResponseDTO>> getById(@PathVariable Long id) {
+    SujetResponseDTO response = subjectService.findById(id);
+    return ResponseEntity.ok(ApiResponse.success("Détails du sujet récupérés", response));
+}
+//* edit sujet */
+@PutMapping("/{id}")
+@PreAuthorize("hasRole('ENSEIGNANT')")
+public ResponseEntity<ApiResponse<SujetResponseDTO>> update(
+        @PathVariable Long id,
+        @Valid @RequestBody SujetRequest request) {
+
+    SujetResponseDTO response = subjectService.updateSujet(id, request);
+    return ResponseEntity.ok(ApiResponse.success("Sujet mis à jour avec succès", response));
+}
 //* delete sujet */
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {

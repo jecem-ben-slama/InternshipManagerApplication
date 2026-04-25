@@ -1,4 +1,4 @@
-package com.iit.internship_manager.services ;
+package com.iit.internship_manager.services;
 
 import com.iit.internship_manager.domain.models.Utilisateur;
 import com.iit.internship_manager.domain.exceptions.AccountDeactivatedException;
@@ -23,10 +23,13 @@ public class AuthenticationService {
 
     public ApiResponse<Map<String, Object>> login(LoginRequest req) {
         // 1. Find user by email
+        // Using InvalidCredentialsException to keep login errors vague (security best
+        // practice)
         Utilisateur user = utilisateurRepository.findByEmail(req.getEmail())
-                .orElseThrow(() -> new InvalidCredentialsException());
+                .orElseThrow(InvalidCredentialsException::new);
 
         // 2. CHECK SOFT DELETE STATUS
+        // Throwing specific exception for deactivated accounts
         if (!user.isActive()) {
             throw new AccountDeactivatedException("Ce compte est désactivé. Veuillez contacter l'administrateur.");
         }
