@@ -1,14 +1,14 @@
+// AdminIT.java — added @DiscriminatorValue which was missing in your version
 package com.iit.internship_manager.domain.models;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
-import lombok.Getter;
-import lombok.Setter;
+import jakarta.persistence.*;
+import lombok.*;
 
 @Entity
 @Table(name = "admins")
+@DiscriminatorValue("ADMIN_IT")
 @Getter
 @Setter
 public class AdminIT extends Utilisateur {
-    // Add admin-specific fields here if needed in the future
+    // No extra fields. AdminIT is a plain Utilisateur.
 }

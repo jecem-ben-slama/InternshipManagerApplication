@@ -1,24 +1,37 @@
+// RegisterRequest.java — abstract base with shared fields only
 package com.iit.internship_manager.web.dtos;
 
-import java.util.List;
-
-import com.iit.internship_manager.domain.enums.AnneeEtude;
-import com.iit.internship_manager.domain.enums.Filiere;
-import com.iit.internship_manager.domain.enums.Role;
-import com.iit.internship_manager.domain.enums.SpecialiteType;
-
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.iit.internship_manager.domain.enums.UserType;
+import jakarta.validation.constraints.*;
 import lombok.Data;
 
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "userType", // the JSON field Jackson reads to pick the subclass
+        visible = true // makes userType accessible on the object after deserialization
+)
+@JsonSubTypes({
+        @JsonSubTypes.Type(value = AdminRegisterRequest.class, name = "ADMIN_IT"),
+        @JsonSubTypes.Type(value = EtudiantRegisterRequest.class, name = "STUDENT"),
+        @JsonSubTypes.Type(value = EnseignantRegisterRequest.class, name = "TEACHER")
+})
 @Data
-public class RegisterRequest {
+public abstract class RegisterRequest {
+
+    @NotNull
+    private UserType userType;
+
+    @NotBlank
+    @Email
     private String email;
+
+    @NotBlank
+    @Size(min = 8)
     private String password;
+
+    @NotBlank
     private String nom;
+
+    @NotBlank
     private String prenom;
-    private String matricule; // Specific to Etudiant
-    private Filiere filiere; // From your Enums
-    private Role role; // Add this!
-    private AnneeEtude anneeEtude; // Specific to Etudiant
-    private List<SpecialiteType> specialites;
-    private boolean isResponsablePFE; // Specific to Enseignant
 }

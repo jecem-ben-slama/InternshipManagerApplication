@@ -13,8 +13,8 @@ import java.util.*;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Enseignant extends Utilisateur {
-
-    private boolean isResponsablePFE = false;
+    @Column(name = "responsable_pfe")
+    private boolean responsablePFE = false;
 
     @ElementCollection(targetClass = SpecialiteType.class)
     @CollectionTable(name = "enseignant_specialites", joinColumns = @JoinColumn(name = "enseignant_id"))

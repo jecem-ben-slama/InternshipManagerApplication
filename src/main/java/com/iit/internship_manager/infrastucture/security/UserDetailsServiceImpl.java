@@ -22,7 +22,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 
         return new User(
                 user.getEmail(),
-                "", // Password handling will be added in AuthService
+                user.getPassword(), // was "" — must be the real encoded password
                 Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + user.getRole().name())));
     }
 }

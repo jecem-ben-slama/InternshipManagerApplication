@@ -1,4 +1,4 @@
-// AuthResponse.java
+// LoginResponse.java
 package com.iit.internship_manager.web.dtos;
 
 import com.iit.internship_manager.domain.enums.Role;
@@ -9,18 +9,18 @@ import lombok.*;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class AuthResponse {
+public class LoginResponse {
 
+    private String token;
     private Long id;
     private String email;
     private String nom;
     private String prenom;
     private Role role;
-    
 
-    // Accepts any Utilisateur subtype — works for AdminIT, Etudiant, Enseignant
-    public static AuthResponse of(Utilisateur u) {
-        return AuthResponse.builder()
+    public static LoginResponse of(String token, Utilisateur u) {
+        return LoginResponse.builder()
+                .token(token)
                 .id(u.getId())
                 .email(u.getEmail())
                 .nom(u.getNom())
