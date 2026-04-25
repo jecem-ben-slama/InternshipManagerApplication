@@ -2,11 +2,11 @@ package com.iit.internship_manager.web.controllers;
 
 import com.iit.internship_manager.services.UserService;
 import com.iit.internship_manager.services.updateUser.UserUpdateService;
+import com.iit.internship_manager.web.dtos.ApiResponse;
 import com.iit.internship_manager.web.dtos.UserResponseDTO;
 import com.iit.internship_manager.web.dtos.updateUser.UpdateRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,50 +20,40 @@ public class UserController {
     private final UserService userService;
     private final UserUpdateService userUpdateService;
 
-    /**
-     * Update an existing user.
-     * The specific subclass (Student/Teacher) is handled automatically by the
-     * UpdateRequest.
-     */
+    // * update user */
     @PutMapping("/{id}")
-    public ResponseEntity<UserResponseDTO> update(
+    public ApiResponse<UserResponseDTO> update(
             @PathVariable Long id,
             @Valid @RequestBody UpdateRequest request) {
-        return ResponseEntity.ok(userUpdateService.update(id, request));
+        UserResponseDTO updated = userUpdateService.update(id, request);
+        return ApiResponse.success("Utilisateur mis à jour avec succès", updated);
     }
 
-    /**
-     * Get a single user's profile.
-     */
+    // * get user by ID */
     @GetMapping("/{id}")
-    public ResponseEntity<UserResponseDTO> getById(@PathVariable Long id) {
-        return ResponseEntity.ok(userService.findById(id));
+    public ApiResponse<UserResponseDTO> getById(@PathVariable Long id) {
+        return ApiResponse.success("Utilisateur récupéré", userService.findById(id));
     }
 
-    /**
-     * Get all active users (useful for Admin dashboards).
-     */
+    // * get all active users */
     @GetMapping
     @PreAuthorize("hasRole('ADMIN_IT')") // Only Admins can see the full user list
-    public ResponseEntity<List<UserResponseDTO>> getAllActive() {
-        return ResponseEntity.ok(userService.findAllActive());
+    public ApiResponse<List<UserResponseDTO>> getAllActive() {
+        return ApiResponse.success("Liste des utilisateurs récupérée", userService.findAllActive());
     }
 
-    /**
-     * Soft delete: Deactivates the user instead of deleting from DB.
-     */
+    // * deactivate user */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deactivate(@PathVariable Long id) {
+    public ApiResponse<Void> deactivate(@PathVariable Long id) {
         userService.delete(id);
-        return ResponseEntity.noContent().build();
+        return ApiResponse.success("Utilisateur désactivé avec succès", null);
     }
 
-    /**
-     * Reactivate a previously deactivated account.
-     */
+    // * reactivate user */
     @PostMapping("/{id}/reactivate")
-    public ResponseEntity<Void> reactivate(@PathVariable Long id) {
+    @PreAuthorize("hasRole('ADMIN_IT')")
+    public ApiResponse<Void> reactivate(@PathVariable Long id) {
         userService.reactivate(id);
-        return ResponseEntity.ok().build();
+        return ApiResponse.success("Utilisateur réactivé avec succès", null);
     }
 }

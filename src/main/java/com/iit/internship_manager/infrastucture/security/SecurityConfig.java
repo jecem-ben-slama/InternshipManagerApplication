@@ -3,7 +3,6 @@ package com.iit.internship_manager.infrastucture.security;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -21,12 +20,19 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
+    private final JwtAuthenticationEntryPoint authEntryPoint; // Injected
+    private final CustomAccessDeniedHandler accessDeniedHandler; // Injected
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(AbstractHttpConfigurer::disable) // Cleaner syntax for disabling CSRF
+                .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // Configure custom error handling for security exceptions
+                .exceptionHandling(exception -> exception
+                        .authenticationEntryPoint(authEntryPoint) // Handles 401 Unauthorized
+                        .accessDeniedHandler(accessDeniedHandler) // Handles 403 Forbidden
+                )
                 .authorizeHttpRequests(auth -> auth
                         // 1. Allow everyone to Register or Login
                         .requestMatchers("/api/auth/login").permitAll()
