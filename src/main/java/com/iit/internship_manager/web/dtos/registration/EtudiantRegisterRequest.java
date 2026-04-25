@@ -1,5 +1,5 @@
 // EtudiantRegisterRequest.java
-package com.iit.internship_manager.web.dtos;
+package com.iit.internship_manager.web.dtos.registration;
 
 import com.iit.internship_manager.domain.enums.*;
 import jakarta.validation.constraints.*;

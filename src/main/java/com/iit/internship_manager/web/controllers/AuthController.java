@@ -4,9 +4,12 @@ import com.iit.internship_manager.services.AuthenticationService;
 import com.iit.internship_manager.services.registration.RegistrationStrategy;
 import com.iit.internship_manager.services.registration.RegistrationStrategyFactory;
 import com.iit.internship_manager.web.dtos.*;
+import com.iit.internship_manager.web.dtos.registration.RegisterRequest;
+
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,6 +25,7 @@ public class AuthController {
     private final AuthenticationService authenticationService;
 
     @PostMapping("/register")
+    @PreAuthorize("hasRole('ADMIN_IT')") // Only Admins can register new users
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
         RegistrationStrategy<RegisterRequest> strategy = factory.resolve(request.getUserType());

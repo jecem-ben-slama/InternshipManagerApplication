@@ -6,6 +6,8 @@ import com.iit.internship_manager.domain.exceptions.EmailAlreadyUsedException;
 import com.iit.internship_manager.domain.models.Enseignant;
 import com.iit.internship_manager.repositories.EnseignantRepository;
 import com.iit.internship_manager.web.dtos.*;
+import com.iit.internship_manager.web.dtos.registration.EnseignantRegisterRequest;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;

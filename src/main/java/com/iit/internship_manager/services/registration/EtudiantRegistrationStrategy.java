@@ -7,6 +7,8 @@ import com.iit.internship_manager.domain.exceptions.MatriculeAlreadyUsedExceptio
 import com.iit.internship_manager.domain.models.Etudiant;
 import com.iit.internship_manager.repositories.EtudiantRepository;
 import com.iit.internship_manager.web.dtos.*;
+import com.iit.internship_manager.web.dtos.registration.EtudiantRegisterRequest;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;

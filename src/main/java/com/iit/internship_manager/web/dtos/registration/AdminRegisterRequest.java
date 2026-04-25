@@ -1,5 +1,5 @@
 // AdminRegisterRequest.java
-package com.iit.internship_manager.web.dtos;
+package com.iit.internship_manager.web.dtos.registration;
 
 import lombok.*;
 

@@ -110,4 +110,21 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(HttpStatus.CONFLICT, "DB_CONFLICT", "Database Error",
                 "A record with this information already exists.");
     }
+    
+    @ExceptionHandler(AccountDeactivatedException.class)
+    public ResponseEntity<ApiErrorResponse> handleAccountDeactivated(AccountDeactivatedException ex) {
+        ApiErrorResponse.ErrorDetail error = ApiErrorResponse.ErrorDetail.builder()
+                .status("403")
+                .code("ACCOUNT_DISABLED")
+                .title("Compte Inactif")
+                .detail(ex.getMessage())
+                .build();
+
+        ApiErrorResponse response = ApiErrorResponse.builder()
+                .status("error")
+                .errors(List.of(error))
+                .build();
+
+        return new ResponseEntity<>(response, HttpStatus.FORBIDDEN);
+    }
 }

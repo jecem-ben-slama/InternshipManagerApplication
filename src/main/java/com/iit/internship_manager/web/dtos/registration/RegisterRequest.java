@@ -1,5 +1,5 @@
 // RegisterRequest.java — abstract base with shared fields only
-package com.iit.internship_manager.web.dtos;
+package com.iit.internship_manager.web.dtos.registration;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;

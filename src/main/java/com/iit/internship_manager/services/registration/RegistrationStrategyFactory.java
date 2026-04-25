@@ -3,7 +3,8 @@ package com.iit.internship_manager.services.registration;
 
 import com.iit.internship_manager.domain.enums.UserType;
 import com.iit.internship_manager.domain.exceptions.UnsupportedUserTypeException;
-import com.iit.internship_manager.web.dtos.RegisterRequest;
+import com.iit.internship_manager.web.dtos.registration.RegisterRequest;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import java.util.List;

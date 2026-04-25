@@ -3,8 +3,9 @@ package com.iit.internship_manager.services.registration;
 
 import com.iit.internship_manager.domain.enums.*;
 import com.iit.internship_manager.domain.models.AdminIT;
-import com.iit.internship_manager.repositories.UtilisateurRepository;
+import com.iit.internship_manager.repositories.UserRepository;
 import com.iit.internship_manager.web.dtos.*;
+import com.iit.internship_manager.web.dtos.registration.AdminRegisterRequest;
 import com.iit.internship_manager.domain.exceptions.EmailAlreadyUsedException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -16,7 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class AdminITRegistrationStrategy
         implements RegistrationStrategy<AdminRegisterRequest> {
 
-    private final UtilisateurRepository utilisateurRepository;
+    private final UserRepository utilisateurRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Override

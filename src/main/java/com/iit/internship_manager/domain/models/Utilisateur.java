@@ -21,6 +21,8 @@ public abstract class Utilisateur {
     private String email;
 
     private String password;
+    @Column(nullable = false)
+    private boolean active = true;
 
     @Enumerated(EnumType.STRING)
     private Role role;
