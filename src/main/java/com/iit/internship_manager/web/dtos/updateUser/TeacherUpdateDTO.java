@@ -11,4 +11,5 @@ import com.iit.internship_manager.domain.enums.SpecialiteType;
 public class TeacherUpdateDTO extends UpdateRequest {
     private boolean isResponsablePFE;
     private Set<SpecialiteType> specialites;
+    private Integer quotaAnnuel;
 }
