@@ -4,6 +4,9 @@ import com.iit.internship_manager.domain.models.Candidature;
 import com.iit.internship_manager.domain.enums.DemandeStatus;
 import lombok.*;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 @Getter
 @Setter
 @NoArgsConstructor
@@ -19,13 +22,12 @@ public class CandidatureResponseDTO {
     private String sujetTitre;
     private String sujetDescription;
 
-    // Student Details
-    private Long etudiantId;
-    private String etudiantNom;
-    private String etudiantPrenom;
-    private String etudiantEmail;
+    // Group Details (New)
+    private Long groupeId;
+    private String groupeNom;
+    private List<MembreDTO> membres;
 
-    // Teacher Details (extracted from the Subject)
+    // Teacher Details
     private Long enseignantId;
     private String enseignantNom;
     private String enseignantEmail;
@@ -33,9 +35,15 @@ public class CandidatureResponseDTO {
     // Messages summary
     private int messageCount;
 
-    /**
-     * Maps the JPA Entity to a flat DTO
-     */
+    @Data
+    @AllArgsConstructor
+    public static class MembreDTO {
+        private Long id;
+        private String nom;
+        private String prenom;
+        private String email;
+    }
+
     public static CandidatureResponseDTO fromEntity(Candidature entity) {
         if (entity == null)
             return null;
@@ -44,27 +52,31 @@ public class CandidatureResponseDTO {
                 .id(entity.getId())
                 .statut(entity.getStatut());
 
-        // Mapping Sujet info
+        // Mapping Sujet & Teacher info
         if (entity.getSujet() != null) {
             builder.sujetId(entity.getSujet().getId())
                     .sujetTitre(entity.getSujet().getTitre())
                     .sujetDescription(entity.getSujet().getDescription());
 
-            // Mapping Teacher info from the Sujet's proposer
-            if (entity.getSujet().getProposant() != null) {
-                builder.enseignantId(entity.getSujet().getProposant().getId())
-                        .enseignantNom(entity.getSujet().getProposant().getNom() + " "
-                                + entity.getSujet().getProposant().getPrenom())
-                        .enseignantEmail(entity.getSujet().getProposant().getEmail());
+            if (entity.getSujet().getEnseignant() != null) {
+                builder.enseignantId(entity.getSujet().getEnseignant().getId())
+                        .enseignantNom(entity.getSujet().getEnseignant().getNom() + " " +
+                                entity.getSujet().getEnseignant().getPrenom())
+                        .enseignantEmail(entity.getSujet().getEnseignant().getEmail());
             }
         }
 
-        // Mapping Etudiant info
-        if (entity.getEtudiant() != null) {
-            builder.etudiantId(entity.getEtudiant().getId())
-                    .etudiantNom(entity.getEtudiant().getNom())
-                    .etudiantPrenom(entity.getEtudiant().getPrenom())
-                    .etudiantEmail(entity.getEtudiant().getEmail());
+        // Mapping Group Info (Replaced Etudiant mapping)
+        if (entity.getGroupe() != null) {
+            builder.groupeId(entity.getGroupe().getId())
+                    .groupeNom(entity.getGroupe().getNom());
+
+            if (entity.getGroupe().getMembres() != null) {
+                List<MembreDTO> membresList = entity.getGroupe().getMembres().stream()
+                        .map(m -> new MembreDTO(m.getId(), m.getNom(), m.getPrenom(), m.getEmail()))
+                        .collect(Collectors.toList());
+                builder.membres(membresList);
+            }
         }
 
         builder.messageCount(entity.getMessages() != null ? entity.getMessages().size() : 0);

@@ -13,6 +13,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/candidatures")
 @RequiredArgsConstructor
@@ -23,6 +25,7 @@ public class CandidatureController {
     /**
      * GET /api/candidatures/me
      * Paginated list of applications for the current User (Student or Teacher).
+     * Works for groups: Students see applications of any group they belong to.
      */
     @GetMapping("/me")
     @PreAuthorize("hasAnyRole('ETUDIANT', 'ENSEIGNANT')")
@@ -38,55 +41,58 @@ public class CandidatureController {
     /**
      * POST /api/candidatures/postuler/{sujetId}
      * Student applies for a specific internship topic.
+     * 
+     * @param partnerIds Optional list of IDs for the binôme/group members.
      */
     @PostMapping("/postuler/{sujetId}")
     @PreAuthorize("hasRole('ETUDIANT')")
-    public ResponseEntity<ApiResponse<Void>> postuler(@PathVariable Long sujetId) {
-        candidatureService.postuler(sujetId);
-        return ResponseEntity.ok(ApiResponse.success("Candidature envoyée avec succès", null));
+    public ResponseEntity<ApiResponse<Void>> postuler(
+            @PathVariable Long sujetId,
+            @RequestBody(required = false) List<Long> partnerIds) {
+
+        candidatureService.postuler(sujetId, partnerIds);
+        return ResponseEntity.ok(ApiResponse.success("Candidature groupée envoyée avec succès", null));
     }
 
     /**
      * PATCH /api/candidatures/{id}/accepter
-     * Teacher accepts a student (Triggering quota check and auto-rejections).
+     * Teacher accepts the group. Triggers auto-rejection for all members' other
+     * apps.
      */
     @PatchMapping("/{id}/accepter")
     @PreAuthorize("hasRole('ENSEIGNANT')")
     public ResponseEntity<ApiResponse<Void>> accepter(@PathVariable Long id) {
         candidatureService.accepterEtudiant(id);
-        return ResponseEntity.ok(ApiResponse.success("Candidature acceptée avec succès", null));
+        return ResponseEntity.ok(ApiResponse.success("Groupe accepté avec succès", null));
     }
 
     /**
      * PATCH /api/candidatures/{id}/refuser
-     * Teacher refuses a student.
      */
     @PatchMapping("/{id}/refuser")
     @PreAuthorize("hasRole('ENSEIGNANT')")
     public ResponseEntity<ApiResponse<Void>> refuser(@PathVariable Long id) {
         candidatureService.refuserEtudiant(id);
-        return ResponseEntity.ok(ApiResponse.success("Candidature refusée", null));
+        return ResponseEntity.ok(ApiResponse.success("Candidature du groupe refusée", null));
     }
 
     /**
      * PATCH /api/candidatures/{id}/clarifier
-     * Teacher requests more info/clarification from the student.
+     * Teacher starts a discussion with the group members.
      */
-   @PatchMapping("/{id}/clarifier")
+    @PatchMapping("/{id}/clarifier")
     @PreAuthorize("hasRole('ENSEIGNANT')")
     public ResponseEntity<ApiResponse<Void>> clarifier(
-            @PathVariable Long id, 
+            @PathVariable Long id,
             @Valid @RequestBody MessageRequest request) {
-        
-        // Pass the content from the request to the service
+
         candidatureService.demanderClarification(id, request.getContent());
-        
-        return ResponseEntity.ok(ApiResponse.success("Demande de clarification envoyée avec message", null));
+        return ResponseEntity.ok(ApiResponse.success("Demande de clarification envoyée au groupe", null));
     }
 
     /**
      * DELETE /api/candidatures/{id}
-     * Student withdraws their application (Only if PENDING).
+     * Any member of the group can withdraw the application if it's still PENDING.
      */
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ETUDIANT')")

@@ -9,7 +9,10 @@ import com.iit.internship_manager.web.dtos.MessageRequest;
 
 import lombok.RequiredArgsConstructor;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -26,57 +29,68 @@ public class CandidatureService {
     private final CandidatureRepository candidatureRepository;
     private final SubjectRepository subjectRepository;
     private final UserRepository userRepository;
-    private final MessageService messageService; // Inject the new service
+    private final MessageService messageService;
+    private final GroupeRepository groupeRepository;
+    private final AffectationRepository affectationRepository;
 
     /**
-     * Helper: Validates existence and ensures the authenticated teacher
-     * is the assigned supervisor (enseignant_id) of the subject.
-     */
-    private Candidature getValidatedCandidatureForTeacher(Long id) {
-        Candidature candidature = candidatureRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Candidature", id));
-
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
-
-        // We use .getEnseignant() to check the supervisor assigned to the subject
-        if (!candidature.getSujet().getEnseignant().getEmail().equals(email)) {
-            throw new UnauthorizedActionException("Vous n'êtes pas le superviseur attitré de ce sujet.");
-        }
-        return candidature;
-    }
-
-    /**
-     * Paginated retrieval for both Students and Teachers.
-     */
-    @Transactional(readOnly = true)
-    public Page<CandidatureResponseDTO> getPagedCandidatures(DemandeStatus status, int page, int size) {
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        Utilisateur user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur", null));
-
-        Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
-        Page<Candidature> resultPage;
-
-        if (user instanceof Etudiant) {
-            resultPage = (status != null)
-                    ? candidatureRepository.findByEtudiantIdAndStatut(user.getId(), status, pageable)
-                    : candidatureRepository.findByEtudiantId(user.getId(), pageable);
-        } else {
-            // Teacher sees candidatures where they are the 'enseignant' (supervisor)
-            resultPage = (status != null)
-                    ? candidatureRepository.findBySujetEnseignantIdAndStatut(user.getId(), status, pageable)
-                    : candidatureRepository.findBySujetEnseignantId(user.getId(), pageable);
-        }
-
-        return resultPage.map(CandidatureResponseDTO::fromEntity);
-    }
-
-    /**
-     * Student applies for a subject.
-     * Scenario 2: Subject must be AVAILABLE.
+     * Teacher Action: ACCEPT
+     * Updates status, creates Affectation, and rejects competing applications.
      */
     @Transactional
-    public void postuler(Long sujetId) {
+    public void accepterEtudiant(Long candidatureId) {
+        Candidature selected = getValidatedCandidatureForTeacher(candidatureId);
+        Enseignant teacher = selected.getSujet().getEnseignant();
+
+        // 1. Quota Check
+        if (teacher.getEncadrementsActuels() >= teacher.getQuotaAnnuel()) {
+            throw new QuotaExceededException();
+        }
+
+        // 2. Update Status
+        selected.setStatut(DemandeStatus.VALIDATED_BY_RESPONSABLE);
+        teacher.setEncadrementsActuels(teacher.getEncadrementsActuels() + 1);
+
+        // 3. Create the Official Affectation
+        Affectation affectation = new Affectation();
+        affectation.setGroupe(selected.getGroupe());
+        affectation.setEncadrant(teacher);
+        affectation.setSujet(selected.getSujet());
+        affectation.setDateAffectation(LocalDateTime.now());
+
+        affectationRepository.save(affectation);
+
+        // 4. CLEANUP: Reject other applications for ALL members of this group
+        rejectOtherApplicationsForGroup(selected);
+
+        userRepository.save(teacher);
+        candidatureRepository.save(selected);
+    }
+
+    private void rejectOtherApplicationsForGroup(Candidature successfulCandidature) {
+        List<Long> memberIds = successfulCandidature.getGroupe().getMembres().stream()
+                .map(Etudiant::getId)
+                .toList();
+
+        for (Long studentId : memberIds) {
+            List<Candidature> otherApps = candidatureRepository.findByGroupeMembresId(studentId);
+            for (Candidature app : otherApps) {
+                if (!app.getId().equals(successfulCandidature.getId()) &&
+                        (app.getStatut() == DemandeStatus.PENDING
+                                || app.getStatut() == DemandeStatus.NEED_CLARIFICATION)) {
+
+                    app.setStatut(DemandeStatus.REJECTED_BY_SYSTEM);
+                    candidatureRepository.save(app);
+                }
+            }
+        }
+    }
+
+    /**
+     * Student applies for a subject (Solo or with partners).
+     */
+    @Transactional
+    public void postuler(Long sujetId, List<Long> partnerIds) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         Etudiant student = (Etudiant) userRepository.findByEmail(email)
                 .orElseThrow(() -> new UnauthorizedActionException("Étudiant non trouvé"));
@@ -88,12 +102,18 @@ public class CandidatureService {
             throw new SujetIndisponibleException();
         }
 
-        if (candidatureRepository.existsByEtudiantIdAndSujetId(student.getId(), sujetId)) {
-            throw new DuplicateCandidatureException();
+        // Check if student is already affected
+        boolean alreadyAffected = candidatureRepository.findByGroupeMembresId(student.getId()).stream()
+                .anyMatch(c -> c.getStatut() == DemandeStatus.VALIDATED_BY_RESPONSABLE);
+
+        if (alreadyAffected) {
+            throw new BadRequestException("Vous êtes déjà affecté à un sujet.");
         }
 
+        Groupe group = findOrCreateGroup(student, partnerIds);
+
         Candidature candidature = new Candidature();
-        candidature.setEtudiant(student);
+        candidature.setGroupe(group);
         candidature.setSujet(sujet);
         candidature.setStatut(DemandeStatus.PENDING);
 
@@ -101,37 +121,57 @@ public class CandidatureService {
     }
 
     /**
-     * Teacher Action: ACCEPT
-     * - Checks quota
-     * - Updates status to ACCEPTED_BY_TEACHER
-     * - Auto-rejects other pending applications for the same student
+     * Finds existing group with exact same members or creates a new one.
      */
-    @Transactional
-    public void accepterEtudiant(Long candidatureId) {
-        Candidature selected = getValidatedCandidatureForTeacher(candidatureId);
-        Enseignant teacher = selected.getSujet().getEnseignant(); // Corrected: Use Enseignant field
-
-        if (teacher.getEncadrementsActuels() >= teacher.getQuotaAnnuel()) {
-            throw new QuotaExceededException();
+    private Groupe findOrCreateGroup(Etudiant creator, List<Long> partnerIds) {
+        List<Etudiant> targetMembers = new ArrayList<>();
+        targetMembers.add(creator);
+        if (partnerIds != null && !partnerIds.isEmpty()) {
+            userRepository.findAllById(partnerIds).forEach(u -> targetMembers.add((Etudiant) u));
         }
 
-        selected.setStatut(DemandeStatus.ACCEPTED_BY_TEACHER);
-        teacher.setEncadrementsActuels(teacher.getEncadrementsActuels() + 1);
+        List<Long> targetIds = targetMembers.stream().map(Etudiant::getId).sorted().collect(Collectors.toList());
 
-        // Professional logic: Reject other pending applications for this student
-        List<Candidature> studentOtherApplications = candidatureRepository
-                .findByEtudiantId(selected.getEtudiant().getId());
-
-        studentOtherApplications.forEach(c -> {
-            if (!c.getId().equals(candidatureId) &&
-                    (c.getStatut() == DemandeStatus.PENDING || c.getStatut() == DemandeStatus.NEED_CLARIFICATION)) {
-                c.setStatut(DemandeStatus.REJECTED_BY_TEACHER);
+        // Check for existing group to prevent join-table spam
+        List<Groupe> existingGroups = groupeRepository.findByMembresId(creator.getId());
+        for (Groupe g : existingGroups) {
+            List<Long> currentIds = g.getMembres().stream().map(Etudiant::getId).sorted().collect(Collectors.toList());
+            if (currentIds.equals(targetIds)) {
+                return g;
             }
-        });
+        }
 
-        userRepository.save(teacher);
-        candidatureRepository.save(selected);
-        candidatureRepository.saveAll(studentOtherApplications);
+        String groupName = "Binôme: " + creator.getNom();
+        if (targetMembers.size() > 1)
+            groupName += " & " + targetMembers.get(1).getNom();
+
+        Groupe newGroup = Groupe.builder()
+                .nom(groupName)
+                .membres(targetMembers)
+                .build();
+        return groupeRepository.save(newGroup);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<CandidatureResponseDTO> getPagedCandidatures(DemandeStatus status, int page, int size) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        Utilisateur user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur", null));
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
+        Page<Candidature> resultPage;
+
+        if (user instanceof Etudiant) {
+            resultPage = (status != null)
+                    ? candidatureRepository.findByGroupeMembresIdAndStatut(user.getId(), status, pageable)
+                    : candidatureRepository.findByGroupeMembresId(user.getId(), pageable);
+        } else {
+            resultPage = (status != null)
+                    ? candidatureRepository.findBySujetEnseignantIdAndStatut(user.getId(), status, pageable)
+                    : candidatureRepository.findBySujetEnseignantId(user.getId(), pageable);
+        }
+
+        return resultPage.map(CandidatureResponseDTO::fromEntity);
     }
 
     @Transactional
@@ -144,57 +184,12 @@ public class CandidatureService {
     @Transactional
     public void demanderClarification(Long candidatureId, String justification) {
         Candidature candidature = getValidatedCandidatureForTeacher(candidatureId);
-
-        // Update status
         candidature.setStatut(DemandeStatus.NEED_CLARIFICATION);
         candidatureRepository.save(candidature);
 
-        // Use the message service to create the first message
         MessageRequest firstMsg = new MessageRequest();
         firstMsg.setContent(justification);
         messageService.sendMessage(candidatureId, firstMsg);
-    }
-
-    /**
-     * Completes the internship record. Quota remains filled as work is done.
-     */
-    @Transactional
-    public void terminerStage(Long candidatureId) {
-        Candidature candidature = getValidatedCandidatureForTeacher(candidatureId);
-
-        if (candidature.getStatut() != DemandeStatus.ACCEPTED_BY_TEACHER) {
-            throw new IllegalCandidatureStateException("Seul un stage en cours peut être terminé.");
-        }
-
-        candidature.setStatut(DemandeStatus.FINISHED);
-        candidatureRepository.save(candidature);
-    }
-
-    /**
-     * Marks internship as abandoned.
-     * Frees teacher quota and makes subject AVAILABLE again.
-     */
-    @Transactional
-    public void abandonnerStage(Long candidatureId) {
-        Candidature candidature = getValidatedCandidatureForTeacher(candidatureId);
-
-        if (candidature.getStatut() != DemandeStatus.ACCEPTED_BY_TEACHER) {
-            throw new IllegalCandidatureStateException("Seul un stage en cours peut être marqué comme abandonné.");
-        }
-
-        candidature.setStatut(DemandeStatus.ABANDONED);
-
-        Enseignant teacher = candidature.getSujet().getEnseignant(); // Corrected: Use Enseignant field
-        if (teacher.getEncadrementsActuels() > 0) {
-            teacher.setEncadrementsActuels(teacher.getEncadrementsActuels() - 1);
-        }
-
-        Sujet sujet = candidature.getSujet();
-        sujet.setStatut(SujetStatus.AVAILABLE);
-
-        userRepository.save(teacher);
-        subjectRepository.save(sujet);
-        candidatureRepository.save(candidature);
     }
 
     @Transactional
@@ -203,14 +198,26 @@ public class CandidatureService {
                 .orElseThrow(() -> new ResourceNotFoundException("Candidature", id));
 
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        if (!candidature.getEtudiant().getEmail().equals(email)) {
-            throw new UnauthorizedActionException("Accès non autorisé.");
-        }
+        boolean isMember = candidature.getGroupe().getMembres().stream()
+                .anyMatch(m -> m.getEmail().equals(email));
 
+        if (!isMember)
+            throw new UnauthorizedActionException("Accès non autorisé.");
         if (candidature.getStatut() != DemandeStatus.PENDING) {
             throw new IllegalCandidatureStateException("Impossible d'annuler une candidature déjà traitée.");
         }
 
         candidatureRepository.delete(candidature);
+    }
+
+    private Candidature getValidatedCandidatureForTeacher(Long id) {
+        Candidature candidature = candidatureRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Candidature", id));
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        if (!candidature.getSujet().getEnseignant().getEmail().equals(email)) {
+            throw new UnauthorizedActionException("Vous n'êtes pas le superviseur attitré de ce sujet.");
+        }
+        return candidature;
     }
 }

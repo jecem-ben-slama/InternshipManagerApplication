@@ -8,6 +8,10 @@ import com.iit.internship_manager.web.dtos.SujetRequest;
 import com.iit.internship_manager.web.dtos.SujetResponseDTO;
 
 import lombok.RequiredArgsConstructor;
+
+import java.util.ArrayList;
+import java.util.List;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -21,8 +25,57 @@ public class SubjectService {
     private final SubjectRepository subjectRepository;
     private final UserRepository userRepository;
     private final CandidatureRepository candidatureRepository;
+    private final GroupeRepository groupeRepository; 
+    
+    // New repository for Groupes
+    private Groupe createGroupForProposal(Etudiant creator, List<Long> partnerIds) {
+        // 1. Build the list of all intended members
+        List<Etudiant> targetMembers = new ArrayList<>();
+        targetMembers.add(creator);
 
-    /**
+        if (partnerIds != null && !partnerIds.isEmpty()) {
+            List<Etudiant> partners = userRepository.findAllById(partnerIds)
+                    .stream()
+                    .map(u -> (Etudiant) u)
+                    .toList();
+            targetMembers.addAll(partners);
+        }
+
+        // 2. CHECK IF THIS EXACT GROUP ALREADY EXISTS
+        // We look for a group where the creator is a member and check if the total
+        // members match
+        List<Groupe> existingGroupsForCreator = groupeRepository.findByMembresId(creator.getId());
+
+        for (Groupe existingGroup : existingGroupsForCreator) {
+            List<Long> existingMemberIds = existingGroup.getMembres().stream()
+                    .map(Etudiant::getId)
+                    .toList();
+
+            List<Long> targetMemberIds = targetMembers.stream()
+                    .map(Etudiant::getId)
+                    .toList();
+
+            // Check if both lists contain the same IDs and are the same size
+            if (existingMemberIds.size() == targetMemberIds.size() &&
+                    existingMemberIds.containsAll(targetMemberIds)) {
+                return existingGroup; // Found it! Return the existing group instead of saving a new one
+            }
+        }
+
+        // 3. If no matching group is found, create and save a new one
+        String groupName = "Binôme: " + creator.getNom();
+        if (targetMembers.size() > 1) {
+            groupName += " & " + targetMembers.get(1).getNom();
+        }
+
+        Groupe group = Groupe.builder()
+                .nom(groupName)
+                .membres(targetMembers)
+                .build();
+
+        return groupeRepository.save(group);
+    }
+  /**
      * Case A: Teacher proposes their own subject.
      * Enseignant_id = Teacher, Proposant_id = NULL, Statut = AVAILABLE.
      */
@@ -46,33 +99,66 @@ public class SubjectService {
      * Case B: Student proposes to a specific teacher.
      * Enseignant_id = Teacher, Proposant_id = Student, Statut = PENDING.
      */
-    @Transactional
-    public SujetResponseDTO studentProposeSujet(Long teacherId, SujetRequest dto) {
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        Etudiant student = (Etudiant) userRepository.findByEmail(email)
-                .orElseThrow(() -> new UnauthorizedActionException("Étudiant non trouvé"));
+  @Transactional
+public SujetResponseDTO studentProposeSujet(Long teacherId, SujetRequest dto) {
+    // 1. Identify the student who is currently logged in
+    String email = SecurityContextHolder.getContext().getAuthentication().getName();
+    Utilisateur currentUser = userRepository.findByEmail(email)
+            .orElseThrow(() -> new UnauthorizedActionException("Utilisateur non trouvé"));
 
-        Enseignant teacher = (Enseignant) userRepository.findById(teacherId)
-                .orElseThrow(() -> new ResourceNotFoundException("Enseignant", teacherId));
-
-        Sujet sujet = new Sujet();
-        mapCommonFields(sujet, dto);
-
-        sujet.setEnseignant(teacher);
-        sujet.setProposant(student);
-        sujet.setStatut(SujetStatus.PENDING); // Needs teacher review
-
-        Sujet savedSujet = subjectRepository.save(sujet);
-
-        // Auto-create candidature so teacher sees it immediately
-        Candidature autoCap = new Candidature();
-        autoCap.setEtudiant(student);
-        autoCap.setSujet(savedSujet);
-        autoCap.setStatut(DemandeStatus.PENDING);
-        candidatureRepository.save(autoCap);
-
-        return SujetResponseDTO.fromEntity(savedSujet);
+    if (!(currentUser instanceof Etudiant)) {
+        throw new UnauthorizedActionException("Seuls les étudiants peuvent proposer des sujets.");
     }
+    Etudiant creator = (Etudiant) currentUser;
+
+    // 2. Identify the target teacher (Safe Check)
+    Utilisateur targetUser = userRepository.findById(teacherId)
+            .orElseThrow(() -> new ResourceNotFoundException("Enseignant", teacherId));
+    
+    if (!(targetUser instanceof Enseignant)) {
+        throw new BadRequestException("L'ID fourni n'appartient pas à un enseignant.");
+    }
+    Enseignant teacher = (Enseignant) targetUser;
+
+    // 3. CHECK IF GROUP MEMBERS ARE ALREADY AFFECTED
+    // We check the creator + all partners in the DTO
+    List<Long> allMemberIds = new ArrayList<>();
+    allMemberIds.add(creator.getId());
+    if (dto.getPartnerIds() != null) {
+        allMemberIds.addAll(dto.getPartnerIds());
+    }
+
+    for (Long studentId : allMemberIds) {
+        // We check if a VALIDATED candidature exists for any member
+        boolean alreadyAffected = candidatureRepository.findByGroupeMembresId(studentId).stream()
+                .anyMatch(c -> c.getStatut() == DemandeStatus.VALIDATED_BY_RESPONSABLE);
+        
+        if (alreadyAffected) {
+            throw new UnauthorizedActionException("L'un des membres (ID: " + studentId + ") est déjà affecté à un sujet.");
+        }
+    }
+
+    // 4. Create or find the Group (Binôme)
+    Groupe group = createGroupForProposal(creator, dto.getPartnerIds());
+
+    // 5. Map and save the Subject
+    Sujet sujet = new Sujet();
+    mapCommonFields(sujet, dto);
+    sujet.setEnseignant(teacher);
+    sujet.setProposant(creator); 
+    sujet.setStatut(SujetStatus.PENDING);
+
+    Sujet savedSujet = subjectRepository.save(sujet);
+
+    // 6. Create the Candidature linked to the GROUP
+    Candidature autoCap = new Candidature();
+    autoCap.setGroupe(group);
+    autoCap.setSujet(savedSujet);
+    autoCap.setStatut(DemandeStatus.PENDING);
+    candidatureRepository.save(autoCap);
+
+    return SujetResponseDTO.fromEntity(savedSujet);
+}
     
     /**
      * Fix for: The method getSubjectsByStatus(SujetStatus, Pageable) is undefined

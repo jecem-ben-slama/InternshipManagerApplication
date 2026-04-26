@@ -77,13 +77,30 @@ public class MessageService {
                 .orElseThrow(() -> new UnauthorizedActionException("Utilisateur non authentifié"));
     }
 
+    /**
+     * Updated validation logic to support Groups (Binômes).
+     * Checks if the user is either the supervisor or a member of the group.
+     */
     private void validateParticipant(Candidature candidature, Utilisateur user) {
-        Long studentId = candidature.getEtudiant().getId();
-        Long teacherId = candidature.getSujet().getEnseignant().getId();
         Long currentUserId = user.getId();
 
-        if (!currentUserId.equals(studentId) && !currentUserId.equals(teacherId)) {
-            throw new UnauthorizedActionException("Accès refusé : vous ne participez pas à cette candidature.");
+        // 1. Check if the user is the teacher/supervisor
+        Long teacherId = candidature.getSujet().getEnseignant().getId();
+        if (currentUserId.equals(teacherId)) {
+            return; // Authorized
         }
+
+        // 2. Check if the user is a member of the group
+        if (candidature.getGroupe() != null && candidature.getGroupe().getMembres() != null) {
+            boolean isMember = candidature.getGroupe().getMembres().stream()
+                    .anyMatch(member -> member.getId().equals(currentUserId));
+
+            if (isMember) {
+                return; // Authorized
+            }
+        }
+
+        // If neither, throw exception
+        throw new UnauthorizedActionException("Accès refusé : vous ne participez pas à cette candidature.");
     }
 }
