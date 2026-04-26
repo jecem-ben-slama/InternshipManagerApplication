@@ -29,7 +29,7 @@ public class CandidatureService {
     private final CandidatureRepository candidatureRepository;
     private final SubjectRepository subjectRepository;
     private final UserRepository userRepository;
-    private final MessageService messageService;
+    private final JpaMessageService messageService;
     private final GroupeRepository groupeRepository;
     private final AffectationRepository affectationRepository;
 

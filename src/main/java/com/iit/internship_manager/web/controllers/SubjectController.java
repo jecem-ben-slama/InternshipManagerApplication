@@ -6,7 +6,6 @@ import com.iit.internship_manager.web.dtos.ApiResponse;
 import com.iit.internship_manager.web.dtos.StatusRequest;
 import com.iit.internship_manager.web.dtos.SujetRequest;
 import com.iit.internship_manager.web.dtos.SujetResponseDTO;
-
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -32,16 +31,13 @@ public class SubjectController {
     public ResponseEntity<ApiResponse<SujetResponseDTO>> teacherPropose(
             @Valid @RequestBody SujetRequest request) {
 
-        SujetResponseDTO response = subjectService.teacherProposeSujet(request);
-
         return new ResponseEntity<>(
-                ApiResponse.success("Sujet d'enseignant créé et disponible", response),
+                ApiResponse.success("Sujet créé et disponible", subjectService.teacherProposeSujet(request)),
                 HttpStatus.CREATED);
     }
 
     /**
      * Flow for Students: Propose a subject to a specific teacher.
-     * Enseignant_id = teacherId, Proposant_id = current student.
      */
     @PostMapping("/student-proposal/{teacherId}")
     @PreAuthorize("hasRole('ETUDIANT')")
@@ -49,93 +45,85 @@ public class SubjectController {
             @PathVariable Long teacherId,
             @Valid @RequestBody SujetRequest request) {
 
-        SujetResponseDTO response = subjectService.studentProposeSujet(teacherId, request);
-
         return new ResponseEntity<>(
-                ApiResponse.success("Proposition envoyée à l'enseignant", response),
+                ApiResponse.success("Proposition envoyée à l'enseignant",
+                        subjectService.studentProposeSujet(teacherId, request)),
                 HttpStatus.CREATED);
     }
 
     /**
-     * Get subjects where the specified teacher is the supervisor (enseignant_id).
-     */
-    /**
      * Get subjects where the CURRENT authenticated teacher is the supervisor.
+     * Standardized pagination using @RequestParam.
      */
     @GetMapping("/my-subjects")
     @PreAuthorize("hasRole('ENSEIGNANT')")
     public ResponseEntity<ApiResponse<Page<SujetResponseDTO>>> getMySubjects(
-            @RequestParam(defaultValue = "0") int page) {
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
 
-        Pageable pageable = PageRequest.of(page, 10);
-
-        // Notice we no longer pass teacherId here
-        Page<SujetResponseDTO> response = subjectService.getSubjectsByCurrentTeacher(pageable);
-
-        return ResponseEntity.ok(ApiResponse.success("Votre liste de sujets a été récupérée", response));
+        Pageable pageable = PageRequest.of(page, size);
+        return ResponseEntity.ok(ApiResponse.success("Votre liste de sujets récupérée",
+                subjectService.getSubjectsByCurrentTeacher(pageable)));
     }
 
     /**
-     * Get all subjects (Admin/Teacher view).
+     * Get all subjects with flexible pagination.
      */
     @GetMapping
-    @PreAuthorize("hasAnyRole('ENSEIGNANT', 'RESPONSABLE_PFE')")
+    @PreAuthorize("hasAnyRole('ENSEIGNANT', 'RESPONSABLE_PFE', 'ETUDIANT')")
     public ResponseEntity<ApiResponse<Page<SujetResponseDTO>>> getAllSujets(
-            @RequestParam(defaultValue = "0") int page) {
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
 
-        Pageable pageable = PageRequest.of(page, 10);
-        Page<SujetResponseDTO> response = subjectService.findAll(pageable);
-
-        return ResponseEntity.ok(ApiResponse.success("Tous les sujets récupérés", response));
+        Pageable pageable = PageRequest.of(page, size);
+        return ResponseEntity.ok(ApiResponse.success("Tous les sujets récupérés",
+                subjectService.findAll(pageable)));
     }
 
     /**
-     * Filter subjects by status (AVAILABLE, PENDING, TAKEN, etc.).
+     * Filter subjects by status (AVAILABLE, PENDING, etc.).
      */
     @GetMapping("/filter")
     public ResponseEntity<ApiResponse<Page<SujetResponseDTO>>> getByStatus(
             @RequestParam SujetStatus status,
-            @RequestParam(defaultValue = "0") int page) {
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
 
-        Pageable pageable = PageRequest.of(page, 10);
-        Page<SujetResponseDTO> response = subjectService.getSubjectsByStatus(status, pageable);
-
-        return ResponseEntity.ok(ApiResponse.success("Sujets filtrés récupérés", response));
+        Pageable pageable = PageRequest.of(page, size);
+        return ResponseEntity.ok(ApiResponse.success("Sujets filtrés récupérés",
+                subjectService.getSubjectsByStatus(status, pageable)));
     }
 
     /**
-     * Update status (e.g., Responsable validates or Teacher accepts student
-     * proposal).
+     * Update status: Used by Responsable PFE to validate or reject.
      */
     @PatchMapping("/{id}/status")
-    @PreAuthorize("hasRole('ENSEIGNANT')")
+    @PreAuthorize("hasAnyRole('ENSEIGNANT', 'RESPONSABLE_PFE')")
     public ResponseEntity<ApiResponse<SujetResponseDTO>> updateStatus(
             @PathVariable Long id,
             @Valid @RequestBody StatusRequest request) {
 
-        SujetResponseDTO updated = subjectService.updateSujetStatus(id, request.getStatus());
-        return ResponseEntity.ok(ApiResponse.success("Statut mis à jour", updated));
+        return ResponseEntity.ok(ApiResponse.success("Statut mis à jour",
+                subjectService.updateSujetStatus(id, request.getStatus())));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<SujetResponseDTO>> getById(@PathVariable Long id) {
-        SujetResponseDTO response = subjectService.findById(id);
-        return ResponseEntity.ok(ApiResponse.success("Détails du sujet récupérés", response));
+        return ResponseEntity.ok(ApiResponse.success("Détails du sujet récupérés",
+                subjectService.findById(id)));
     }
 
-    /**
-     * Edit subject: Authorized for the supervisor or the student who proposed it.
-     */
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<SujetResponseDTO>> update(
             @PathVariable Long id,
             @Valid @RequestBody SujetRequest request) {
 
-        SujetResponseDTO response = subjectService.updateSujet(id, request);
-        return ResponseEntity.ok(ApiResponse.success("Sujet mis à jour avec succès", response));
+        return ResponseEntity.ok(ApiResponse.success("Sujet mis à jour avec succès",
+                subjectService.updateSujet(id, request)));
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ENSEIGNANT', 'RESPONSABLE_PFE')")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         subjectService.deleteSujet(id);
         return ResponseEntity.ok(ApiResponse.success("Sujet supprimé", null));

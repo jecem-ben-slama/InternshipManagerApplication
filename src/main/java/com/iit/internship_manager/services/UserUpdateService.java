@@ -1,8 +1,10 @@
 package com.iit.internship_manager.services;
 
 import com.iit.internship_manager.domain.exceptions.ResourceNotFoundException;
+import com.iit.internship_manager.domain.exceptions.UnauthorizedActionException;
 import com.iit.internship_manager.domain.models.Utilisateur;
 import com.iit.internship_manager.repositories.UserRepository;
+import com.iit.internship_manager.services.interfaces.ISecurityContext; // Inject this
 import com.iit.internship_manager.services.updateUser.UserUpdateStrategy;
 import com.iit.internship_manager.web.dtos.UserResponseDTO;
 import com.iit.internship_manager.web.dtos.updateUser.UpdateRequest;
@@ -17,36 +19,53 @@ import java.util.List;
 public class UserUpdateService {
 
     private final UserRepository userRepository;
-    // Spring automatically injects all classes that implement UserUpdateStrategy
-    // into this list
     private final List<UserUpdateStrategy> updateStrategies;
+    private final ISecurityContext securityContext; // New dependency
 
     @Transactional
     public UserResponseDTO update(Long id, UpdateRequest dto) {
-        // 1. Fetch the user from the database
-        Utilisateur user = userRepository.findById(id)
-                // Updated to use the clean constructor: resource name + id
+        // 1. Fetch the target user
+        Utilisateur targetUser = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Utilisateur", id));
 
-        // 2. Update common fields (shared by all users)
-        user.setNom(dto.getNom());
-        user.setPrenom(dto.getPrenom());
-        user.setEmail(dto.getEmail());
-        user.setRole(dto.getRole());
+        // 2. SECURITY CHECK: Who is allowed to update this?
+        validateUpdatePermission(targetUser);
 
-        // 3. The "Strategy Selector" logic
-        // We look through our list of strategies to find the one that 'supports' this
-        // user/dto
+        // 3. Update common fields
+        targetUser.setNom(dto.getNom());
+        targetUser.setPrenom(dto.getPrenom());
+        targetUser.setEmail(dto.getEmail());
+
+        // Only an Admin should be able to change a Role!
+        if (securityContext.hasRole("ADMIN_IT")) {
+            targetUser.setRole(dto.getRole());
+        }
+
+        // 4. Strategy Execution
         updateStrategies.stream()
-                .filter(strategy -> strategy.supports(user, dto))
+                .filter(strategy -> strategy.supports(targetUser, dto))
                 .findFirst()
-                // You could also create a custom "StrategyNotFoundException" extending
-                // DomainException here
-                .orElseThrow(() -> new RuntimeException("Aucune stratégie trouvée pour ce type d'utilisateur"))
-                .update(user, dto); // <--- Here, the specialist takes over!
+                .orElseThrow(
+                        () -> new UnauthorizedActionException("Type d'utilisateur non supporté pour la mise à jour"))
+                .update(targetUser, dto);
 
-        // 4. Save and return
-        Utilisateur updatedUser = userRepository.save(user);
-        return UserResponseDTO.fromEntity(updatedUser);
+        return UserResponseDTO.fromEntity(userRepository.save(targetUser));
+    }
+
+    /**
+     * Internal logic to decide if the current user can modify the target user.
+     */
+    private void validateUpdatePermission(Utilisateur targetUser) {
+        Long currentUserId = securityContext.getCurrentUserId();
+
+        // Rule 1: You can always update yourself
+        if (targetUser.getId().equals(currentUserId)) {
+            return;
+        }
+
+        // Rule 2: Only Admin_IT can update other people
+        if (!securityContext.hasRole("ADMIN_IT")) {
+            throw new UnauthorizedActionException("Vous n'avez pas la permission de modifier ce profil.");
+        }
     }
 }

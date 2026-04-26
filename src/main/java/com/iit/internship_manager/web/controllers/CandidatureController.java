@@ -5,10 +5,10 @@ import com.iit.internship_manager.services.CandidatureService;
 import com.iit.internship_manager.web.dtos.ApiResponse;
 import com.iit.internship_manager.web.dtos.CandidatureResponseDTO;
 import com.iit.internship_manager.web.dtos.MessageRequest;
-
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -23,9 +23,8 @@ public class CandidatureController {
     private final CandidatureService candidatureService;
 
     /**
-     * GET /api/candidatures/me
-     * Paginated list of applications for the current User (Student or Teacher).
-     * Works for groups: Students see applications of any group they belong to.
+     * GET /api/candidatures/me?status=PENDING&page=0&size=10
+     * Returns applications related to the current user (Student or Teacher).
      */
     @GetMapping("/me")
     @PreAuthorize("hasAnyRole('ETUDIANT', 'ENSEIGNANT')")
@@ -35,14 +34,12 @@ public class CandidatureController {
             @RequestParam(defaultValue = "10") int size) {
 
         Page<CandidatureResponseDTO> list = candidatureService.getPagedCandidatures(status, page, size);
-        return ResponseEntity.ok(ApiResponse.success("Liste récupérée avec succès", list));
+        return ResponseEntity.ok(ApiResponse.success("Mes candidatures récupérées", list));
     }
 
     /**
      * POST /api/candidatures/postuler/{sujetId}
-     * Student applies for a specific internship topic.
-     * 
-     * @param partnerIds Optional list of IDs for the binôme/group members.
+     * Student creates a new application (Solo or Binôme).
      */
     @PostMapping("/postuler/{sujetId}")
     @PreAuthorize("hasRole('ETUDIANT')")
@@ -51,19 +48,20 @@ public class CandidatureController {
             @RequestBody(required = false) List<Long> partnerIds) {
 
         candidatureService.postuler(sujetId, partnerIds);
-        return ResponseEntity.ok(ApiResponse.success("Candidature groupée envoyée avec succès", null));
+        return new ResponseEntity<>(
+                ApiResponse.success("Candidature soumise avec succès", null),
+                HttpStatus.CREATED);
     }
 
     /**
      * PATCH /api/candidatures/{id}/accepter
-     * Teacher accepts the group. Triggers auto-rejection for all members' other
-     * apps.
+     * Teacher accepts the group for this subject.
      */
     @PatchMapping("/{id}/accepter")
     @PreAuthorize("hasRole('ENSEIGNANT')")
     public ResponseEntity<ApiResponse<Void>> accepter(@PathVariable Long id) {
         candidatureService.accepterEtudiant(id);
-        return ResponseEntity.ok(ApiResponse.success("Groupe accepté avec succès", null));
+        return ResponseEntity.ok(ApiResponse.success("Candidature acceptée", null));
     }
 
     /**
@@ -73,12 +71,12 @@ public class CandidatureController {
     @PreAuthorize("hasRole('ENSEIGNANT')")
     public ResponseEntity<ApiResponse<Void>> refuser(@PathVariable Long id) {
         candidatureService.refuserEtudiant(id);
-        return ResponseEntity.ok(ApiResponse.success("Candidature du groupe refusée", null));
+        return ResponseEntity.ok(ApiResponse.success("Candidature refusée", null));
     }
 
     /**
      * PATCH /api/candidatures/{id}/clarifier
-     * Teacher starts a discussion with the group members.
+     * Teacher initiates a chat/clarification regarding the application.
      */
     @PatchMapping("/{id}/clarifier")
     @PreAuthorize("hasRole('ENSEIGNANT')")
@@ -87,17 +85,17 @@ public class CandidatureController {
             @Valid @RequestBody MessageRequest request) {
 
         candidatureService.demanderClarification(id, request.getContent());
-        return ResponseEntity.ok(ApiResponse.success("Demande de clarification envoyée au groupe", null));
+        return ResponseEntity.ok(ApiResponse.success("Demande de clarification envoyée", null));
     }
 
     /**
      * DELETE /api/candidatures/{id}
-     * Any member of the group can withdraw the application if it's still PENDING.
+     * Student withdraws their application.
      */
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ETUDIANT')")
     public ResponseEntity<ApiResponse<Void>> annuler(@PathVariable Long id) {
         candidatureService.annulerCandidature(id);
-        return ResponseEntity.ok(ApiResponse.success("Candidature annulée avec succès", null));
+        return ResponseEntity.ok(ApiResponse.success("Candidature retirée", null));
     }
 }

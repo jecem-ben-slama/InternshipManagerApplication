@@ -7,59 +7,59 @@ import com.iit.internship_manager.domain.models.CandidatureMessage;
 import com.iit.internship_manager.domain.models.Utilisateur;
 import com.iit.internship_manager.repositories.CandidatureRepository;
 import com.iit.internship_manager.repositories.MessageRepository;
-import com.iit.internship_manager.repositories.UserRepository;
+import com.iit.internship_manager.services.interfaces.IMessageService;
+import com.iit.internship_manager.services.interfaces.ISecurityContext;
 import com.iit.internship_manager.web.dtos.MessageRequest;
 import com.iit.internship_manager.web.dtos.MessageResponseDTO;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Primary;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable; // Fixes "Pageable cannot be resolved"
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
 @Service
+@Primary
 @RequiredArgsConstructor
-public class MessageService {
+public class JpaMessageService implements IMessageService {
 
     private final MessageRepository messageRepository;
     private final CandidatureRepository candidatureRepository;
-    private final UserRepository userRepository;
+    private final ISecurityContext securityContext; // Decoupled Security
 
+    @Override
     @Transactional(readOnly = true)
     public Page<MessageResponseDTO> getConversation(Long candidatureId, int page, int size) {
-        // First, fetch the candidature to validate
         Candidature candidature = candidatureRepository.findById(candidatureId)
                 .orElseThrow(() -> new ResourceNotFoundException("Candidature", candidatureId));
 
-        // Security check
-        validateParticipant(candidature, getCurrentUser());
+        // Use the securityContext instead of a local helper
+        validateParticipant(candidature, securityContext.getCurrentUser());
 
-        // Setup pagination with sorting
         Pageable pageable = PageRequest.of(page, size, Sort.by("sentAt").descending());
 
-        // Return the mapped page
         return messageRepository.findByCandidatureId(candidatureId, pageable)
                 .map(MessageResponseDTO::fromEntity);
     }
 
-    /**
-     * Fixes the error on line 119 by passing default values (0, 20)
-     */
+    @Override
     @Transactional(readOnly = true)
     public Page<MessageResponseDTO> getAllMessagesByCandidature(Long candidatureId) {
-        return getConversation(candidatureId, 0, 20);
+        // Standard view: Page 0 with a larger buffer
+        return getConversation(candidatureId, 0, 50);
     }
 
+    @Override
     @Transactional
     public MessageResponseDTO sendMessage(Long candidatureId, MessageRequest dto) {
         Candidature candidature = candidatureRepository.findById(candidatureId)
                 .orElseThrow(() -> new ResourceNotFoundException("Candidature", candidatureId));
 
-        Utilisateur sender = getCurrentUser();
+        Utilisateur sender = securityContext.getCurrentUser();
         validateParticipant(candidature, sender);
 
         CandidatureMessage message = new CandidatureMessage();
@@ -72,29 +72,29 @@ public class MessageService {
         return MessageResponseDTO.fromEntity(messageRepository.save(message));
     }
 
+    @Override
     @Transactional
     public void deleteMessage(Long messageId) {
         CandidatureMessage message = messageRepository.findById(messageId)
                 .orElseThrow(() -> new ResourceNotFoundException("Message", messageId));
 
-        if (!message.getSender().getId().equals(getCurrentUser().getId())) {
+        // Decoupled ID check
+        if (!message.getSender().getId().equals(securityContext.getCurrentUserId())) {
             throw new UnauthorizedActionException("Vous ne pouvez supprimer que vos propres messages.");
         }
 
         messageRepository.delete(message);
     }
 
-    private Utilisateur getCurrentUser() {
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        return userRepository.findByEmail(email)
-                .orElseThrow(() -> new UnauthorizedActionException("Utilisateur non authentifié"));
-    }
-
+    /**
+     * Internal validation logic for chat participants
+     */
     private void validateParticipant(Candidature candidature, Utilisateur user) {
         Long currentUserId = user.getId();
-        boolean isTeacher = candidature.getSujet().getEnseignant().getId().equals(currentUserId);
-        boolean isMember = false;
 
+        boolean isTeacher = candidature.getSujet().getEnseignant().getId().equals(currentUserId);
+
+        boolean isMember = false;
         if (candidature.getGroupe() != null && candidature.getGroupe().getMembres() != null) {
             isMember = candidature.getGroupe().getMembres().stream()
                     .anyMatch(member -> member.getId().equals(currentUserId));

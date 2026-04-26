@@ -1,11 +1,8 @@
 package com.iit.internship_manager.web.controllers;
-
-
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import com.iit.internship_manager.services.MessageService;
+import com.iit.internship_manager.services.JpaMessageService;
 import com.iit.internship_manager.web.dtos.ApiResponse;
 import com.iit.internship_manager.web.dtos.MessageRequest;
 import com.iit.internship_manager.web.dtos.MessageResponseDTO;
@@ -17,7 +14,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class MessageController {
 
-    private final MessageService messageService;
+    private final JpaMessageService messageService;
 
     /**
      * POST /api/messages/{candidatureId}

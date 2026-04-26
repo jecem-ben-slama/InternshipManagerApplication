@@ -1,8 +1,6 @@
 package com.iit.internship_manager.web.controllers;
 
 import com.iit.internship_manager.services.AuthenticationService;
-import com.iit.internship_manager.services.registration.RegistrationStrategy;
-import com.iit.internship_manager.services.registration.RegistrationStrategyFactory;
 import com.iit.internship_manager.web.dtos.*;
 import com.iit.internship_manager.web.dtos.registration.RegisterRequest;
 
@@ -21,15 +19,16 @@ import java.util.Map;
 @Validated
 public class AuthController {
 
-    private final RegistrationStrategyFactory factory;
     private final AuthenticationService authenticationService;
 
     @PostMapping("/register")
-    @PreAuthorize("hasRole('ADMIN_IT')") // Only Admins can register new users
+    @PreAuthorize("hasRole('ADMIN_IT')")
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
-        RegistrationStrategy<RegisterRequest> strategy = factory.resolve(request.getUserType());
-        return ApiResponse.success("User registered successfully", strategy.register(request));
+        // Controller is now "Thin" and clean
+        return ApiResponse.success(
+                "Utilisateur créé avec succès",
+                authenticationService.register(request));
     }
 
     @PostMapping("/login")
