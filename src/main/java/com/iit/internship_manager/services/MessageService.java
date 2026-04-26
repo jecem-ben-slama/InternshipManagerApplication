@@ -1,24 +1,25 @@
 package com.iit.internship_manager.services;
 
+import com.iit.internship_manager.domain.exceptions.ResourceNotFoundException;
+import com.iit.internship_manager.domain.exceptions.UnauthorizedActionException;
 import com.iit.internship_manager.domain.models.Candidature;
 import com.iit.internship_manager.domain.models.CandidatureMessage;
 import com.iit.internship_manager.domain.models.Utilisateur;
-import com.iit.internship_manager.domain.exceptions.ResourceNotFoundException;
-import com.iit.internship_manager.domain.exceptions.UnauthorizedActionException;
 import com.iit.internship_manager.repositories.CandidatureRepository;
 import com.iit.internship_manager.repositories.MessageRepository;
 import com.iit.internship_manager.repositories.UserRepository;
 import com.iit.internship_manager.web.dtos.MessageRequest;
 import com.iit.internship_manager.web.dtos.MessageResponseDTO;
-
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable; // Fixes "Pageable cannot be resolved"
+import org.springframework.data.domain.Sort;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -28,19 +29,37 @@ public class MessageService {
     private final CandidatureRepository candidatureRepository;
     private final UserRepository userRepository;
 
+    @Transactional(readOnly = true)
+    public Page<MessageResponseDTO> getConversation(Long candidatureId, int page, int size) {
+        // First, fetch the candidature to validate
+        Candidature candidature = candidatureRepository.findById(candidatureId)
+                .orElseThrow(() -> new ResourceNotFoundException("Candidature", candidatureId));
+
+        // Security check
+        validateParticipant(candidature, getCurrentUser());
+
+        // Setup pagination with sorting
+        Pageable pageable = PageRequest.of(page, size, Sort.by("sentAt").descending());
+
+        // Return the mapped page
+        return messageRepository.findByCandidatureId(candidatureId, pageable)
+                .map(MessageResponseDTO::fromEntity);
+    }
+
     /**
-     * Sends a message within a specific candidature context.
-     * Validates that the sender is either the student or the supervisor.
+     * Fixes the error on line 119 by passing default values (0, 20)
      */
+    @Transactional(readOnly = true)
+    public Page<MessageResponseDTO> getAllMessagesByCandidature(Long candidatureId) {
+        return getConversation(candidatureId, 0, 20);
+    }
+
     @Transactional
     public MessageResponseDTO sendMessage(Long candidatureId, MessageRequest dto) {
         Candidature candidature = candidatureRepository.findById(candidatureId)
                 .orElseThrow(() -> new ResourceNotFoundException("Candidature", candidatureId));
 
         Utilisateur sender = getCurrentUser();
-
-        // Security check: Is the sender involved in this specific internship
-        // application?
         validateParticipant(candidature, sender);
 
         CandidatureMessage message = new CandidatureMessage();
@@ -53,23 +72,17 @@ public class MessageService {
         return MessageResponseDTO.fromEntity(messageRepository.save(message));
     }
 
-    /**
-     * Retrieves the entire chat history for a candidature.
-     */
-    @Transactional(readOnly = true)
-    public List<MessageResponseDTO> getConversation(Long candidatureId) {
-        Candidature candidature = candidatureRepository.findById(candidatureId)
-                .orElseThrow(() -> new ResourceNotFoundException("Candidature", candidatureId));
+    @Transactional
+    public void deleteMessage(Long messageId) {
+        CandidatureMessage message = messageRepository.findById(messageId)
+                .orElseThrow(() -> new ResourceNotFoundException("Message", messageId));
 
-        validateParticipant(candidature, getCurrentUser());
+        if (!message.getSender().getId().equals(getCurrentUser().getId())) {
+            throw new UnauthorizedActionException("Vous ne pouvez supprimer que vos propres messages.");
+        }
 
-        return messageRepository.findByCandidatureIdOrderBySentAtAsc(candidatureId)
-                .stream()
-                .map(MessageResponseDTO::fromEntity)
-                .collect(Collectors.toList());
+        messageRepository.delete(message);
     }
-
-    // --- Helpers ---
 
     private Utilisateur getCurrentUser() {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -77,30 +90,18 @@ public class MessageService {
                 .orElseThrow(() -> new UnauthorizedActionException("Utilisateur non authentifié"));
     }
 
-    /**
-     * Updated validation logic to support Groups (Binômes).
-     * Checks if the user is either the supervisor or a member of the group.
-     */
     private void validateParticipant(Candidature candidature, Utilisateur user) {
         Long currentUserId = user.getId();
+        boolean isTeacher = candidature.getSujet().getEnseignant().getId().equals(currentUserId);
+        boolean isMember = false;
 
-        // 1. Check if the user is the teacher/supervisor
-        Long teacherId = candidature.getSujet().getEnseignant().getId();
-        if (currentUserId.equals(teacherId)) {
-            return; // Authorized
-        }
-
-        // 2. Check if the user is a member of the group
         if (candidature.getGroupe() != null && candidature.getGroupe().getMembres() != null) {
-            boolean isMember = candidature.getGroupe().getMembres().stream()
+            isMember = candidature.getGroupe().getMembres().stream()
                     .anyMatch(member -> member.getId().equals(currentUserId));
-
-            if (isMember) {
-                return; // Authorized
-            }
         }
 
-        // If neither, throw exception
-        throw new UnauthorizedActionException("Accès refusé : vous ne participez pas à cette candidature.");
+        if (!isTeacher && !isMember) {
+            throw new UnauthorizedActionException("Accès refusé : vous ne participez pas à cette discussion.");
+        }
     }
 }

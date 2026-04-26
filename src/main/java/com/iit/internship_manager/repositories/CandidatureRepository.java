@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface CandidatureRepository extends JpaRepository<Candidature, Long> {
@@ -32,4 +33,6 @@ public interface CandidatureRepository extends JpaRepository<Candidature, Long> 
 
     // Find other candidatures for the same subject to reject them
     List<Candidature> findBySujetIdAndIdNot(Long sujetId, Long acceptedCandidatureId);
+    
+    Optional<Candidature> findByGroupeIdAndStatut(Long groupeId, DemandeStatus statut);
 }

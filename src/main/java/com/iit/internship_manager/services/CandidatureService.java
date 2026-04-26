@@ -42,31 +42,40 @@ public class CandidatureService {
         Candidature selected = getValidatedCandidatureForTeacher(candidatureId);
         Enseignant teacher = selected.getSujet().getEnseignant();
 
-        // 1. Quota Check
+        // 1. Status Validation (Allowing both PENDING and NEED_CLARIFICATION)
+        if (selected.getStatut() != DemandeStatus.PENDING &&
+                selected.getStatut() != DemandeStatus.NEED_CLARIFICATION) {
+            throw new IllegalStateException(
+                    "Seules les candidatures en attente ou en clarification peuvent être acceptées.");
+        }
+
+        // 2. Quota Check
         if (teacher.getEncadrementsActuels() >= teacher.getQuotaAnnuel()) {
             throw new QuotaExceededException();
         }
 
-        // 2. Update Status
-        selected.setStatut(DemandeStatus.VALIDATED_BY_RESPONSABLE);
+        // 3. Update Status
+        selected.setStatut(DemandeStatus.ACCEPTED_BY_TEACHER); // Or Accepedbyteacher
         teacher.setEncadrementsActuels(teacher.getEncadrementsActuels() + 1);
 
-        // 3. Create the Official Affectation
+        // 4. Create the Official Affectation with the Link back to Chat
         Affectation affectation = new Affectation();
         affectation.setGroupe(selected.getGroupe());
         affectation.setEncadrant(teacher);
         affectation.setSujet(selected.getSujet());
         affectation.setDateAffectation(LocalDateTime.now());
 
+        // CRITICAL: Link the affectation to the candidature so the chat persists
+        affectation.setOriginalCandidature(selected);
+
         affectationRepository.save(affectation);
 
-        // 4. CLEANUP: Reject other applications for ALL members of this group
+        // 5. CLEANUP: Reject other applications for ALL members of this group
         rejectOtherApplicationsForGroup(selected);
 
         userRepository.save(teacher);
         candidatureRepository.save(selected);
     }
-
     private void rejectOtherApplicationsForGroup(Candidature successfulCandidature) {
         List<Long> memberIds = successfulCandidature.getGroupe().getMembres().stream()
                 .map(Etudiant::getId)

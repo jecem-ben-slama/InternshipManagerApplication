@@ -25,4 +25,7 @@ public class Affectation {
     private Sujet sujet;
 
     private LocalDateTime dateAffectation = LocalDateTime.now();
+    @OneToOne // One successful application leads to one assignment
+    @JoinColumn(name = "candidature_id")
+    private Candidature originalCandidature;
 }
