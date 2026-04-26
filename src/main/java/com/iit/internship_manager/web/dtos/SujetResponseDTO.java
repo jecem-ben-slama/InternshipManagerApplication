@@ -1,5 +1,6 @@
 package com.iit.internship_manager.web.dtos;
 
+import com.iit.internship_manager.domain.enums.SujetType;
 import com.iit.internship_manager.domain.models.Sujet;
 import lombok.Data;
 import java.util.List;
@@ -7,6 +8,7 @@ import java.util.List;
 @Data
 public class SujetResponseDTO {
     private Long id;
+    private SujetType type;
     private String titre;
     private String description;
     private String statut;
@@ -19,6 +21,7 @@ public class SujetResponseDTO {
     public static SujetResponseDTO fromEntity(Sujet sujet) {
         SujetResponseDTO dto = new SujetResponseDTO();
         dto.setId(sujet.getId());
+        dto.setType(sujet.getType());
         dto.setTitre(sujet.getTitre());
         dto.setDescription(sujet.getDescription());
         dto.setStatut(sujet.getStatut().name());

@@ -9,6 +9,8 @@ import lombok.NoArgsConstructor;
 
 import java.util.List;
 
+import com.iit.internship_manager.domain.enums.SujetType;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -21,7 +23,7 @@ public class SujetRequest {
     @NotBlank(message = "La description est obligatoire")
     @Size(min = 20, message = "La description doit être plus détaillée (min 20 caractères)")
     private String description;
-    
+    private SujetType type; // PFA or PFE
 
     @NotEmpty(message = "Veuillez spécifier au moins une technologie")
     private List<String> technologies;

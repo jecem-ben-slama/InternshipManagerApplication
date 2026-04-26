@@ -1,13 +1,11 @@
 package com.iit.internship_manager.services;
 
-import com.iit.internship_manager.domain.models.Enseignant;
-import com.iit.internship_manager.domain.models.Sujet;
-import com.iit.internship_manager.domain.enums.SujetStatus;
-import com.iit.internship_manager.repositories.SubjectRepository;
-import com.iit.internship_manager.repositories.EnseignantRepository;
+import com.iit.internship_manager.domain.models.*;
+import com.iit.internship_manager.domain.enums.*;
+import com.iit.internship_manager.domain.exceptions.*;
+import com.iit.internship_manager.repositories.*;
 import com.iit.internship_manager.web.dtos.SujetRequest;
 import com.iit.internship_manager.web.dtos.SujetResponseDTO;
-import com.iit.internship_manager.domain.exceptions.*; // Import your custom exception hierarchy
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -21,74 +19,73 @@ import org.springframework.transaction.annotation.Transactional;
 public class SubjectService {
 
     private final SubjectRepository subjectRepository;
-    private final EnseignantRepository enseignantRepository;
+    private final UserRepository userRepository;
+    private final CandidatureRepository candidatureRepository;
 
+    /**
+     * Case A: Teacher proposes their own subject.
+     * Enseignant_id = Teacher, Proposant_id = NULL, Statut = AVAILABLE.
+     */
     @Transactional
-    public SujetResponseDTO proposeSujet(Long teacherId, SujetRequest dto) {
-        // 1. Fetch the Enseignant
-        Enseignant en = enseignantRepository.findById(teacherId)
+    public SujetResponseDTO teacherProposeSujet(SujetRequest dto) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        Enseignant teacher = (Enseignant) userRepository.findByEmail(email)
+                .orElseThrow(() -> new UnauthorizedActionException("Enseignant non trouvé"));
+
+        Sujet sujet = new Sujet();
+        mapCommonFields(sujet, dto);
+
+        sujet.setEnseignant(teacher);
+        sujet.setProposant(null);
+        sujet.setStatut(SujetStatus.AVAILABLE); // Scenario 2: Validated by default
+
+        return SujetResponseDTO.fromEntity(subjectRepository.save(sujet));
+    }
+
+    /**
+     * Case B: Student proposes to a specific teacher.
+     * Enseignant_id = Teacher, Proposant_id = Student, Statut = PENDING.
+     */
+    @Transactional
+    public SujetResponseDTO studentProposeSujet(Long teacherId, SujetRequest dto) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        Etudiant student = (Etudiant) userRepository.findByEmail(email)
+                .orElseThrow(() -> new UnauthorizedActionException("Étudiant non trouvé"));
+
+        Enseignant teacher = (Enseignant) userRepository.findById(teacherId)
                 .orElseThrow(() -> new ResourceNotFoundException("Enseignant", teacherId));
 
-        // 2. Map Request DTO to Entity
         Sujet sujet = new Sujet();
-        sujet.setTitre(dto.getTitre());
-        sujet.setDescription(dto.getDescription());
-        sujet.setTechnologies(dto.getTechnologies());
-        sujet.setProposant(en);
-        sujet.setStatut(SujetStatus.PENDING);
+        mapCommonFields(sujet, dto);
 
-        // 3. Save the Entity
+        sujet.setEnseignant(teacher);
+        sujet.setProposant(student);
+        sujet.setStatut(SujetStatus.PENDING); // Needs teacher review
+
         Sujet savedSujet = subjectRepository.save(sujet);
 
-        // 4. Return the Response DTO (The "Clean" version)
+        // Auto-create candidature so teacher sees it immediately
+        Candidature autoCap = new Candidature();
+        autoCap.setEtudiant(student);
+        autoCap.setSujet(savedSujet);
+        autoCap.setStatut(DemandeStatus.PENDING);
+        candidatureRepository.save(autoCap);
+
         return SujetResponseDTO.fromEntity(savedSujet);
     }
-
-    // *get subjects by teacher
-    public Page<SujetResponseDTO> getSubjectsByTeacher(Long teacherId, Pageable pageable) {
-        // Fetch the page of entities
-        Page<Sujet> sujets = subjectRepository.findByProposantId(teacherId, pageable);
-
-        // Convert each entity in the page to a DTO
-        return sujets.map(SujetResponseDTO::fromEntity);
-    }
-
-    // * get all available subjects */
-    @Transactional(readOnly = true)
-    public Page<SujetResponseDTO> findAll(Pageable pageable) {
-        return subjectRepository.findAll(pageable)
-                .map(SujetResponseDTO::fromEntity);
-    }
-
-    // * get subjects by status */
+    
+    /**
+     * Fix for: The method getSubjectsByStatus(SujetStatus, Pageable) is undefined
+     */
     @Transactional(readOnly = true)
     public Page<SujetResponseDTO> getSubjectsByStatus(SujetStatus status, Pageable pageable) {
         return subjectRepository.findByStatut(status, pageable)
                 .map(SujetResponseDTO::fromEntity);
     }
 
-    // * update sujet status */
-    @Transactional
-    public SujetResponseDTO updateSujetStatus(Long id, SujetStatus status) {
-        // 1. Get the current authenticated user from SecurityContext
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        Enseignant currentUser = enseignantRepository.findByEmail(email)
-                .orElseThrow(() -> new UnauthorizedActionException("Utilisateur non trouvé"));
-
-        // 2. The critical check: Is he a Responsable PFE?
-        if (!currentUser.isResponsablePFE()) {
-            throw new UnauthorizedActionException("Seul le Responsable PFE peut valider les sujets.");
-        }
-
-        // 3. Update logic
-        Sujet sujet = subjectRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Sujet", id));
-
-        sujet.setStatut(status);
-        return SujetResponseDTO.fromEntity(subjectRepository.save(sujet));
-    }
-
-    // * get by id */
+    /**
+     * Fix for: The method findById(Long) is undefined
+     */
     @Transactional(readOnly = true)
     public SujetResponseDTO findById(Long id) {
         return subjectRepository.findById(id)
@@ -96,40 +93,76 @@ public class SubjectService {
                 .orElseThrow(() -> new ResourceNotFoundException("Sujet", id));
     }
 
-    // * edit */
-    @Transactional
-    public SujetResponseDTO updateSujet(Long id, SujetRequest dto) {
-        // 1. Get current user
+    @Transactional(readOnly = true)
+    public Page<SujetResponseDTO> getSubjectsByCurrentTeacher(Pageable pageable) {
+        // 1. Get the email from the JWT token via SecurityContext
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
 
-        // 2. Find the subject
+        // 2. Find the teacher in the database
+        Enseignant teacher = (Enseignant) userRepository.findByEmail(email)
+                .orElseThrow(() -> new UnauthorizedActionException("Enseignant non trouvé"));
+
+        // 3. Use the ID we just found to query the repository
+        return subjectRepository.findByEnseignantId(teacher.getId(), pageable)
+                .map(SujetResponseDTO::fromEntity);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<SujetResponseDTO> findAll(Pageable pageable) {
+        return subjectRepository.findAll(pageable)
+                .map(SujetResponseDTO::fromEntity);
+    }
+
+    /**
+     * Admin/Responsable action to override or validate status if needed.
+     */
+    @Transactional
+    public SujetResponseDTO updateSujetStatus(Long id, SujetStatus status) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        Utilisateur currentUser = userRepository.findByEmail(email).orElseThrow();
+
+        // Check if user is the Coordinator (ResponsablePFE)
+        if (!(currentUser instanceof Enseignant) || !((Enseignant) currentUser).isResponsablePFE()) {
+            throw new UnauthorizedActionException("Seul le Responsable PFE peut effectuer cette action.");
+        }
+
         Sujet sujet = subjectRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Sujet", id));
 
-        // 3. Security Check: Only the owner can edit
-        if (!sujet.getProposant().getEmail().equals(email)) {
-            throw new UnauthorizedActionException("Accès refusé: Vous n'êtes pas l'auteur de ce sujet.");
-        }
-
-        // 4. Business Rule: Can't edit if already validated/rejected
-        if (sujet.getStatut() != SujetStatus.PENDING) {
-            throw new SujetIndisponibleException(id);
-        }
-
-        // 5. Update fields
-        sujet.setTitre(dto.getTitre());
-        sujet.setDescription(dto.getDescription());
-        sujet.setTechnologies(dto.getTechnologies());
-
+        sujet.setStatut(status);
         return SujetResponseDTO.fromEntity(subjectRepository.save(sujet));
     }
 
-    // * delete */
+    @Transactional
+    public SujetResponseDTO updateSujet(Long id, SujetRequest dto) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        Sujet sujet = subjectRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Sujet", id));
+
+        // Check ownership: Can be the teacher (enseignant) or the student (proposant)
+        boolean isTeacherOwner = sujet.getEnseignant().getEmail().equals(email);
+        boolean isStudentOwner = sujet.getProposant() != null && sujet.getProposant().getEmail().equals(email);
+
+        if (!isTeacherOwner && !isStudentOwner) {
+            throw new UnauthorizedActionException("Vous n'avez pas le droit de modifier ce sujet.");
+        }
+
+        mapCommonFields(sujet, dto);
+        return SujetResponseDTO.fromEntity(subjectRepository.save(sujet));
+    }
+
     @Transactional
     public void deleteSujet(Long sujetId) {
         if (!subjectRepository.existsById(sujetId)) {
             throw new ResourceNotFoundException("Sujet", sujetId);
         }
         subjectRepository.deleteById(sujetId);
+    }
+
+    private void mapCommonFields(Sujet sujet, SujetRequest dto) {
+        sujet.setTitre(dto.getTitre());
+        sujet.setDescription(dto.getDescription());
+        sujet.setTechnologies(dto.getTechnologies());
+        sujet.setType(dto.getType()); // PFA or PFE
     }
 }
