@@ -1,8 +1,7 @@
-// AuthResponse.java
 package com.iit.internship_manager.web.dtos;
 
-import com.iit.internship_manager.domain.enums.Role;
 import com.iit.internship_manager.domain.models.Utilisateur;
+
 import lombok.*;
 
 @Data
@@ -11,21 +10,21 @@ import lombok.*;
 @AllArgsConstructor
 public class AuthResponse {
 
-    private Long id;
-    private String email;
-    private String nom;
-    private String prenom;
-    private Role role;
-    
+    private String token;
 
-    // Accepts any Utilisateur subtype — works for AdminIT, Etudiant, Enseignant
-    public static AuthResponse of(Utilisateur u) {
+    /**
+     * Nesting the DTO ensures consistency across the whole app.
+     * Flutter will see this as a 'user' object inside the response.
+     */
+    private UserResponseDTO user;
+
+    /**
+     * Static factory method to create an AuthResponse from an Entity and a Token.
+     */
+    public static AuthResponse of(Utilisateur u, String token) {
         return AuthResponse.builder()
-                .id(u.getId())
-                .email(u.getEmail())
-                .nom(u.getNom())
-                .prenom(u.getPrenom())
-                .role(u.getRole())
+                .token(token)
+                .user(UserResponseDTO.fromEntity(u))
                 .build();
     }
 }

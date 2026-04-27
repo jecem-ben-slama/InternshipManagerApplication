@@ -5,6 +5,7 @@ import com.iit.internship_manager.domain.enums.*;
 import com.iit.internship_manager.domain.exceptions.*;
 import com.iit.internship_manager.repositories.*;
 import com.iit.internship_manager.services.interfaces.ISecurityContext;
+import com.iit.internship_manager.services.interfaces.ISubjectService;
 import com.iit.internship_manager.services.interfaces.IGroupeService;
 import com.iit.internship_manager.web.dtos.SujetRequest;
 import com.iit.internship_manager.web.dtos.SujetResponseDTO;
@@ -19,7 +20,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-public class SubjectService {
+public class SubjectServiceImpl implements ISubjectService {
 
     private final SubjectRepository subjectRepository;
     private final UserRepository userRepository;

@@ -1,56 +1,68 @@
 package com.iit.internship_manager.web.controllers;
 
-import com.iit.internship_manager.services.UserService;
-import com.iit.internship_manager.services.UserUpdateService;
+import com.iit.internship_manager.services.interfaces.IUserService;
+import com.iit.internship_manager.services.interfaces.IUserUpdateService;
 import com.iit.internship_manager.web.dtos.ApiResponse;
 import com.iit.internship_manager.web.dtos.UserResponseDTO;
 import com.iit.internship_manager.web.dtos.updateUser.UpdateRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
+@Validated
 public class UserController {
 
-    private final UserService userService;
-    private final UserUpdateService userUpdateService;
+    private final IUserService userService;
+    private final IUserUpdateService userUpdateService;
 
     /**
      * GET /api/users/me
-     * Fetches the profile of the currently logged-in user.
-     * Use this in Flutter as soon as the user logs in.
+     * Fetches the profile of the currently authenticated user.
+     * Essential for the Flutter app to load the local user state.
      */
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<UserResponseDTO>> getCurrentUser() {
-        return ResponseEntity.ok(ApiResponse.success(
-                "Profil récupéré",
-                userService.getCurrentUserProfile()));
+        UserResponseDTO profile = userService.getCurrentUserProfile();
+        return ResponseEntity.ok(ApiResponse.success("Profil récupéré avec succès", profile));
     }
 
-    // * update user */
+    /**
+     * PUT /api/users/{id}
+     * Updates user details using the Strategy Pattern.
+     * Security: Logic inside service ensures users only update themselves unless
+     * they are ADMIN_IT.
+     */
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<UserResponseDTO>> update(
             @PathVariable Long id,
             @Valid @RequestBody UpdateRequest request) {
+
         UserResponseDTO updated = userUpdateService.update(id, request);
         return ResponseEntity.ok(ApiResponse.success("Utilisateur mis à jour avec succès", updated));
     }
 
-    // * get user by ID */
+    /**
+     * GET /api/users/{id}
+     * Allows administration and teachers to view specific student/colleague
+     * profiles.
+     */
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN_IT') or hasRole('TEACHER')") // Only staff should browse all IDs
+    @PreAuthorize("hasAnyRole('ADMIN_IT', 'ENSEIGNANT')")
     public ResponseEntity<ApiResponse<UserResponseDTO>> getById(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.success("Utilisateur récupéré", userService.findById(id)));
+        UserResponseDTO user = userService.findById(id);
+        return ResponseEntity.ok(ApiResponse.success("Utilisateur récupéré", user));
     }
 
     /**
-     * GET /api/users/active?page=0&size=10
-     * Switched to RequestParams for standard pagination
+     * GET /api/users/active
+     * Admin dashboard view to manage all active users.
      */
     @GetMapping("/active")
     @PreAuthorize("hasRole('ADMIN_IT')")
@@ -58,12 +70,14 @@ public class UserController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
 
-        return ResponseEntity.ok(ApiResponse.success(
-                "Liste des utilisateurs récupérée",
-                userService.findAllActive(page, size)));
+        Page<UserResponseDTO> users = userService.findAllActive(page, size);
+        return ResponseEntity.ok(ApiResponse.success("Liste des utilisateurs actifs récupérée", users));
     }
 
-    // * deactivate user */
+    /**
+     * DELETE /api/users/{id}
+     * Performs a soft-delete (deactivation).
+     */
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN_IT')")
     public ResponseEntity<ApiResponse<Void>> deactivate(@PathVariable Long id) {
@@ -71,7 +85,10 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success("Utilisateur désactivé avec succès", null));
     }
 
-    // * reactivate user */
+    /**
+     * POST /api/users/{id}/reactivate
+     * Allows an Admin to restore a previously deactivated account.
+     */
     @PostMapping("/{id}/reactivate")
     @PreAuthorize("hasRole('ADMIN_IT')")
     public ResponseEntity<ApiResponse<Void>> reactivate(@PathVariable Long id) {

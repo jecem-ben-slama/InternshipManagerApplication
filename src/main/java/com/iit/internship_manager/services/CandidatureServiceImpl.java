@@ -4,105 +4,81 @@ import com.iit.internship_manager.domain.models.*;
 import com.iit.internship_manager.domain.enums.*;
 import com.iit.internship_manager.domain.exceptions.*;
 import com.iit.internship_manager.repositories.*;
+import com.iit.internship_manager.services.interfaces.*;
 import com.iit.internship_manager.web.dtos.CandidatureResponseDTO;
 import com.iit.internship_manager.web.dtos.MessageRequest;
 
 import lombok.RequiredArgsConstructor;
-
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
-public class CandidatureService {
+public class CandidatureServiceImpl implements ICandidatureService {
 
     private final CandidatureRepository candidatureRepository;
     private final SubjectRepository subjectRepository;
     private final UserRepository userRepository;
-    private final JpaMessageService messageService;
-    private final GroupeRepository groupeRepository;
+    private final IMessageService messageService; 
+    private final IGroupeService groupeService;   
+    private final ISecurityContext securityContext;
     private final AffectationRepository affectationRepository;
 
     /**
      * Teacher Action: ACCEPT
-     * Updates status, creates Affectation, and rejects competing applications.
      */
+    @Override
     @Transactional
     public void accepterEtudiant(Long candidatureId) {
         Candidature selected = getValidatedCandidatureForTeacher(candidatureId);
         Enseignant teacher = selected.getSujet().getEnseignant();
 
-        // 1. Status Validation (Allowing both PENDING and NEED_CLARIFICATION)
+        // 1. Logic Validation
         if (selected.getStatut() != DemandeStatus.PENDING &&
                 selected.getStatut() != DemandeStatus.NEED_CLARIFICATION) {
-            throw new IllegalStateException(
-                    "Seules les candidatures en attente ou en clarification peuvent être acceptées.");
+            throw new IllegalStateException("Seules les candidatures en attente ou en clarification peuvent être acceptées.");
         }
 
-        // 2. Quota Check
+        // 2. Business Rule: Quota Check
         if (teacher.getEncadrementsActuels() >= teacher.getQuotaAnnuel()) {
             throw new QuotaExceededException();
         }
 
         // 3. Update Status
-        selected.setStatut(DemandeStatus.ACCEPTED_BY_TEACHER); // Or Accepedbyteacher
+        selected.setStatut(DemandeStatus.ACCEPTED_BY_TEACHER);
         teacher.setEncadrementsActuels(teacher.getEncadrementsActuels() + 1);
 
-        // 4. Create the Official Affectation with the Link back to Chat
+        // 4. Create official Affectation
         Affectation affectation = new Affectation();
         affectation.setGroupe(selected.getGroupe());
         affectation.setEncadrant(teacher);
         affectation.setSujet(selected.getSujet());
         affectation.setDateAffectation(LocalDateTime.now());
-
-        // CRITICAL: Link the affectation to the candidature so the chat persists
         affectation.setOriginalCandidature(selected);
 
         affectationRepository.save(affectation);
 
-        // 5. CLEANUP: Reject other applications for ALL members of this group
+        // 5. Cleanup: Reject competing applications for these students
         rejectOtherApplicationsForGroup(selected);
 
         userRepository.save(teacher);
         candidatureRepository.save(selected);
     }
-    private void rejectOtherApplicationsForGroup(Candidature successfulCandidature) {
-        List<Long> memberIds = successfulCandidature.getGroupe().getMembres().stream()
-                .map(Etudiant::getId)
-                .toList();
-
-        for (Long studentId : memberIds) {
-            List<Candidature> otherApps = candidatureRepository.findByGroupeMembresId(studentId);
-            for (Candidature app : otherApps) {
-                if (!app.getId().equals(successfulCandidature.getId()) &&
-                        (app.getStatut() == DemandeStatus.PENDING
-                                || app.getStatut() == DemandeStatus.NEED_CLARIFICATION)) {
-
-                    app.setStatut(DemandeStatus.REJECTED_BY_SYSTEM);
-                    candidatureRepository.save(app);
-                }
-            }
-        }
-    }
 
     /**
-     * Student applies for a subject (Solo or with partners).
+     * Student Action: APPLY
      */
+    @Override
     @Transactional
     public void postuler(Long sujetId, List<Long> partnerIds) {
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        Etudiant student = (Etudiant) userRepository.findByEmail(email)
-                .orElseThrow(() -> new UnauthorizedActionException("Étudiant non trouvé"));
+        Utilisateur currentUser = securityContext.getCurrentUser();
+        if (!(currentUser instanceof Etudiant student)) {
+            throw new UnauthorizedActionException("Seuls les étudiants peuvent postuler à des sujets.");
+        }
 
         Sujet sujet = subjectRepository.findById(sujetId)
                 .orElseThrow(() -> new ResourceNotFoundException("Sujet", sujetId));
@@ -111,7 +87,7 @@ public class CandidatureService {
             throw new SujetIndisponibleException();
         }
 
-        // Check if student is already affected
+        // Check if student is already affected to a validated internship
         boolean alreadyAffected = candidatureRepository.findByGroupeMembresId(student.getId()).stream()
                 .anyMatch(c -> c.getStatut() == DemandeStatus.VALIDATED_BY_RESPONSABLE);
 
@@ -119,7 +95,8 @@ public class CandidatureService {
             throw new BadRequestException("Vous êtes déjà affecté à un sujet.");
         }
 
-        Groupe group = findOrCreateGroup(student, partnerIds);
+        // DECOUPLED: Delegate group logic to the IGroupeService
+        Groupe group = groupeService.getOrCreateGroup(student, partnerIds);
 
         Candidature candidature = new Candidature();
         candidature.setGroupe(group);
@@ -129,47 +106,13 @@ public class CandidatureService {
         candidatureRepository.save(candidature);
     }
 
-    /**
-     * Finds existing group with exact same members or creates a new one.
-     */
-    private Groupe findOrCreateGroup(Etudiant creator, List<Long> partnerIds) {
-        List<Etudiant> targetMembers = new ArrayList<>();
-        targetMembers.add(creator);
-        if (partnerIds != null && !partnerIds.isEmpty()) {
-            userRepository.findAllById(partnerIds).forEach(u -> targetMembers.add((Etudiant) u));
-        }
-
-        List<Long> targetIds = targetMembers.stream().map(Etudiant::getId).sorted().collect(Collectors.toList());
-
-        // Check for existing group to prevent join-table spam
-        List<Groupe> existingGroups = groupeRepository.findByMembresId(creator.getId());
-        for (Groupe g : existingGroups) {
-            List<Long> currentIds = g.getMembres().stream().map(Etudiant::getId).sorted().collect(Collectors.toList());
-            if (currentIds.equals(targetIds)) {
-                return g;
-            }
-        }
-
-        String groupName = "Binôme: " + creator.getNom();
-        if (targetMembers.size() > 1)
-            groupName += " & " + targetMembers.get(1).getNom();
-
-        Groupe newGroup = Groupe.builder()
-                .nom(groupName)
-                .membres(targetMembers)
-                .build();
-        return groupeRepository.save(newGroup);
-    }
-
+    @Override
     @Transactional(readOnly = true)
     public Page<CandidatureResponseDTO> getPagedCandidatures(DemandeStatus status, int page, int size) {
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        Utilisateur user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur", null));
-
+        Utilisateur user = securityContext.getCurrentUser();
         Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
+        
         Page<Candidature> resultPage;
-
         if (user instanceof Etudiant) {
             resultPage = (status != null)
                     ? candidatureRepository.findByGroupeMembresIdAndStatut(user.getId(), status, pageable)
@@ -183,6 +126,7 @@ public class CandidatureService {
         return resultPage.map(CandidatureResponseDTO::fromEntity);
     }
 
+    @Override
     @Transactional
     public void refuserEtudiant(Long candidatureId) {
         Candidature candidature = getValidatedCandidatureForTeacher(candidatureId);
@@ -190,43 +134,60 @@ public class CandidatureService {
         candidatureRepository.save(candidature);
     }
 
+    @Override
     @Transactional
     public void demanderClarification(Long candidatureId, String justification) {
         Candidature candidature = getValidatedCandidatureForTeacher(candidatureId);
         candidature.setStatut(DemandeStatus.NEED_CLARIFICATION);
         candidatureRepository.save(candidature);
 
+        // Uses IMessageService to start the discussion
         MessageRequest firstMsg = new MessageRequest();
         firstMsg.setContent(justification);
         messageService.sendMessage(candidatureId, firstMsg);
     }
 
+    @Override
     @Transactional
     public void annulerCandidature(Long id) {
         Candidature candidature = candidatureRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Candidature", id));
 
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        Long currentUserId = securityContext.getCurrentUserId();
         boolean isMember = candidature.getGroupe().getMembres().stream()
-                .anyMatch(m -> m.getEmail().equals(email));
+                .anyMatch(m -> m.getId().equals(currentUserId));
 
-        if (!isMember)
-            throw new UnauthorizedActionException("Accès non autorisé.");
+        if (!isMember) throw new UnauthorizedActionException("Accès non autorisé.");
+        
         if (candidature.getStatut() != DemandeStatus.PENDING) {
-            throw new IllegalCandidatureStateException("Impossible d'annuler une candidature déjà traitée.");
+            throw new IllegalStateException("Impossible d'annuler une candidature déjà traitée.");
         }
 
         candidatureRepository.delete(candidature);
     }
 
-    private Candidature getValidatedCandidatureForTeacher(Long id) {
-        Candidature candidature = candidatureRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Candidature", id));
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+    // --- Private Helpers ---
 
-        if (!candidature.getSujet().getEnseignant().getEmail().equals(email)) {
-            throw new UnauthorizedActionException("Vous n'êtes pas le superviseur attitré de ce sujet.");
+    private Candidature getValidatedCandidatureForTeacher(Long id) {
+        Candidature c = candidatureRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Candidature", id));
+
+        if (!c.getSujet().getEnseignant().getId().equals(securityContext.getCurrentUserId())) {
+            throw new UnauthorizedActionException("Vous n'êtes pas le superviseur de ce sujet.");
         }
-        return candidature;
+        return c;
+    }
+
+    private void rejectOtherApplicationsForGroup(Candidature successfulApp) {
+        successfulApp.getGroupe().getMembres().forEach(student -> {
+            List<Candidature> others = candidatureRepository.findByGroupeMembresId(student.getId());
+            others.stream()
+                .filter(app -> !app.getId().equals(successfulApp.getId()))
+                .filter(app -> app.getStatut() == DemandeStatus.PENDING || app.getStatut() == DemandeStatus.NEED_CLARIFICATION)
+                .forEach(app -> {
+                    app.setStatut(DemandeStatus.REJECTED_BY_SYSTEM);
+                    candidatureRepository.save(app);
+                });
+        });
     }
 }

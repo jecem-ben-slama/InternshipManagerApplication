@@ -1,38 +1,45 @@
 package com.iit.internship_manager.web.controllers;
 
-import com.iit.internship_manager.services.AuthenticationService;
+import com.iit.internship_manager.services.interfaces.IAuthenticationService;
 import com.iit.internship_manager.web.dtos.*;
 import com.iit.internship_manager.web.dtos.registration.RegisterRequest;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
-
 @RestController
-@RequestMapping("/api/auth") // matches your SecurityConfig permitAll path
+@RequestMapping("/api/auth")
 @RequiredArgsConstructor
 @Validated
 public class AuthController {
 
-    private final AuthenticationService authenticationService;
+    private final IAuthenticationService authenticationService;
 
+    /**
+     * POST /api/auth/register
+     * Only Admin_IT can create new accounts (Students or Teachers).
+     */
     @PostMapping("/register")
     @PreAuthorize("hasRole('ADMIN_IT')")
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
-        // Controller is now "Thin" and clean
-        return ApiResponse.success(
-                "Utilisateur créé avec succès",
-                authenticationService.register(request));
+        AuthResponse response = authenticationService.register(request);
+        return ApiResponse.success("Utilisateur créé avec succès", response);
     }
 
+    /**
+     * POST /api/auth/login
+     * Returns the JWT token and the user's profile data.
+     */
     @PostMapping("/login")
-    public ApiResponse<Map<String, Object>> login(@Valid @RequestBody LoginRequest request) {
-        return authenticationService.login(request);
+    public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest request) {
+        AuthResponse response = authenticationService.login(request);
+        return ResponseEntity.ok(
+                ApiResponse.success("Bienvenue, " + response.getUser().getPrenom(), response));
     }
 }

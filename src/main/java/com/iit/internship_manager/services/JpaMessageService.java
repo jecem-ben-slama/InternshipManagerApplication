@@ -48,7 +48,7 @@ public class JpaMessageService implements IMessageService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<MessageResponseDTO> getAllMessagesByCandidature(Long candidatureId) {
+    public Page<MessageResponseDTO> getAllMessagesByCandidature(Long candidatureId, int page, int size) {
         // Standard view: Page 0 with a larger buffer
         return getConversation(candidatureId, 0, 50);
     }

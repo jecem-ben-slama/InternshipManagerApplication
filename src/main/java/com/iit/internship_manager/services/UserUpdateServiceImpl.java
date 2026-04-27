@@ -4,7 +4,8 @@ import com.iit.internship_manager.domain.exceptions.ResourceNotFoundException;
 import com.iit.internship_manager.domain.exceptions.UnauthorizedActionException;
 import com.iit.internship_manager.domain.models.Utilisateur;
 import com.iit.internship_manager.repositories.UserRepository;
-import com.iit.internship_manager.services.interfaces.ISecurityContext; // Inject this
+import com.iit.internship_manager.services.interfaces.ISecurityContext;
+import com.iit.internship_manager.services.interfaces.IUserUpdateService;
 import com.iit.internship_manager.services.updateUser.UserUpdateStrategy;
 import com.iit.internship_manager.web.dtos.UserResponseDTO;
 import com.iit.internship_manager.web.dtos.updateUser.UpdateRequest;
@@ -16,56 +17,53 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-public class UserUpdateService {
+public class UserUpdateServiceImpl implements IUserUpdateService {
 
     private final UserRepository userRepository;
     private final List<UserUpdateStrategy> updateStrategies;
-    private final ISecurityContext securityContext; // New dependency
+    private final ISecurityContext securityContext;
 
+    @Override
     @Transactional
     public UserResponseDTO update(Long id, UpdateRequest dto) {
-        // 1. Fetch the target user
+        // 1. Fetch target
         Utilisateur targetUser = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Utilisateur", id));
 
-        // 2. SECURITY CHECK: Who is allowed to update this?
+        // 2. Validate Permission (Self or Admin)
         validateUpdatePermission(targetUser);
 
-        // 3. Update common fields
+        // 3. Map Common Fields
         targetUser.setNom(dto.getNom());
         targetUser.setPrenom(dto.getPrenom());
         targetUser.setEmail(dto.getEmail());
 
-        // Only an Admin should be able to change a Role!
-        if (securityContext.hasRole("ADMIN_IT")) {
+        // Security Rule: Role changes are restricted to IT Admins
+        if (securityContext.hasRole("ADMIN_IT") && dto.getRole() != null) {
             targetUser.setRole(dto.getRole());
         }
 
-        // 4. Strategy Execution
+        // 4. Delegate to the correct Strategy (Student, Teacher, or Admin)
         updateStrategies.stream()
                 .filter(strategy -> strategy.supports(targetUser, dto))
                 .findFirst()
-                .orElseThrow(
-                        () -> new UnauthorizedActionException("Type d'utilisateur non supporté pour la mise à jour"))
+                .orElseThrow(() -> new UnauthorizedActionException("Combinaison type/utilisateur non supportée"))
                 .update(targetUser, dto);
 
         return UserResponseDTO.fromEntity(userRepository.save(targetUser));
     }
 
-    /**
-     * Internal logic to decide if the current user can modify the target user.
-     */
     private void validateUpdatePermission(Utilisateur targetUser) {
         Long currentUserId = securityContext.getCurrentUserId();
 
-        // Rule 1: You can always update yourself
+        // Allow if updating own profile
         if (targetUser.getId().equals(currentUserId)) {
             return;
         }
 
-        // Rule 2: Only Admin_IT can update other people
+        // Allow if current user is Admin
         if (!securityContext.hasRole("ADMIN_IT")) {
-            throw new UnauthorizedActionException("Vous n'avez pas la permission de modifier ce profil.");
+            throw new UnauthorizedActionException("Accès refusé : vous ne pouvez modifier que votre propre profil.");
         }
     }
 }

@@ -5,6 +5,7 @@ import com.iit.internship_manager.domain.exceptions.UnauthorizedActionException;
 import com.iit.internship_manager.domain.models.Utilisateur;
 import com.iit.internship_manager.repositories.UserRepository;
 import com.iit.internship_manager.services.interfaces.ISecurityContext;
+import com.iit.internship_manager.services.interfaces.IUserService;
 import com.iit.internship_manager.web.dtos.UserResponseDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -15,8 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class UserService {
-
+public class UserServiceImpl implements IUserService {
     private final UserRepository userRepository;
     private final ISecurityContext securityContext; // New Injection
 

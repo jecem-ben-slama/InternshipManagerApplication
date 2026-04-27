@@ -1,7 +1,7 @@
 package com.iit.internship_manager.web.controllers;
 
 import com.iit.internship_manager.domain.enums.SujetStatus;
-import com.iit.internship_manager.services.SubjectService;
+import com.iit.internship_manager.services.interfaces.ISubjectService; // Using Interface
 import com.iit.internship_manager.web.dtos.ApiResponse;
 import com.iit.internship_manager.web.dtos.StatusRequest;
 import com.iit.internship_manager.web.dtos.SujetRequest;
@@ -14,14 +14,16 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/subjects")
 @RequiredArgsConstructor
+@Validated
 public class SubjectController {
 
-    private final SubjectService subjectService;
+    private final ISubjectService subjectService; // Decoupled!
 
     /**
      * Flow for Teachers: Propose a subject that becomes AVAILABLE immediately.
@@ -53,7 +55,6 @@ public class SubjectController {
 
     /**
      * Get subjects where the CURRENT authenticated teacher is the supervisor.
-     * Standardized pagination using @RequestParam.
      */
     @GetMapping("/my-subjects")
     @PreAuthorize("hasRole('ENSEIGNANT')")
@@ -70,7 +71,7 @@ public class SubjectController {
      * Get all subjects with flexible pagination.
      */
     @GetMapping
-    @PreAuthorize("hasAnyRole('ENSEIGNANT', 'RESPONSABLE_PFE', 'ETUDIANT')")
+    @PreAuthorize("hasAnyRole('ENSEIGNANT', 'RESPONSABLE_PFE', 'ETUDIANT', 'ADMIN_IT')")
     public ResponseEntity<ApiResponse<Page<SujetResponseDTO>>> getAllSujets(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
@@ -95,7 +96,8 @@ public class SubjectController {
     }
 
     /**
-     * Update status: Used by Responsable PFE to validate or reject.
+     * Update status: Used by Responsable PFE to validate or Enseignant to accept
+     * student proposals.
      */
     @PatchMapping("/{id}/status")
     @PreAuthorize("hasAnyRole('ENSEIGNANT', 'RESPONSABLE_PFE')")
@@ -123,7 +125,7 @@ public class SubjectController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ENSEIGNANT', 'RESPONSABLE_PFE')")
+    @PreAuthorize("hasAnyRole('ENSEIGNANT', 'RESPONSABLE_PFE', 'ADMIN_IT')")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         subjectService.deleteSujet(id);
         return ResponseEntity.ok(ApiResponse.success("Sujet supprimé", null));

@@ -1,7 +1,7 @@
 package com.iit.internship_manager.web.controllers;
 
 import com.iit.internship_manager.domain.enums.DemandeStatus;
-import com.iit.internship_manager.services.CandidatureService;
+import com.iit.internship_manager.services.interfaces.ICandidatureService; // Using Interface
 import com.iit.internship_manager.web.dtos.ApiResponse;
 import com.iit.internship_manager.web.dtos.CandidatureResponseDTO;
 import com.iit.internship_manager.web.dtos.MessageRequest;
@@ -11,6 +11,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,13 +19,14 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/candidatures")
 @RequiredArgsConstructor
+@Validated
 public class CandidatureController {
 
-    private final CandidatureService candidatureService;
+    private final ICandidatureService candidatureService; // Updated to Interface
 
     /**
-     * GET /api/candidatures/me?status=PENDING&page=0&size=10
-     * Returns applications related to the current user (Student or Teacher).
+     * GET /api/candidatures/me
+     * Context-aware: Returns student applications or teacher received requests.
      */
     @GetMapping("/me")
     @PreAuthorize("hasAnyRole('ETUDIANT', 'ENSEIGNANT')")
@@ -34,12 +36,12 @@ public class CandidatureController {
             @RequestParam(defaultValue = "10") int size) {
 
         Page<CandidatureResponseDTO> list = candidatureService.getPagedCandidatures(status, page, size);
-        return ResponseEntity.ok(ApiResponse.success("Mes candidatures récupérées", list));
+        return ResponseEntity.ok(ApiResponse.success("Liste des candidatures récupérée", list));
     }
 
     /**
      * POST /api/candidatures/postuler/{sujetId}
-     * Student creates a new application (Solo or Binôme).
+     * Standardized endpoint for applying to a specific subject.
      */
     @PostMapping("/postuler/{sujetId}")
     @PreAuthorize("hasRole('ETUDIANT')")
@@ -55,13 +57,13 @@ public class CandidatureController {
 
     /**
      * PATCH /api/candidatures/{id}/accepter
-     * Teacher accepts the group for this subject.
+     * Logic for quota management and auto-rejection is handled in the service.
      */
     @PatchMapping("/{id}/accepter")
     @PreAuthorize("hasRole('ENSEIGNANT')")
     public ResponseEntity<ApiResponse<Void>> accepter(@PathVariable Long id) {
         candidatureService.accepterEtudiant(id);
-        return ResponseEntity.ok(ApiResponse.success("Candidature acceptée", null));
+        return ResponseEntity.ok(ApiResponse.success("Candidature acceptée et affectation créée", null));
     }
 
     /**
@@ -76,7 +78,7 @@ public class CandidatureController {
 
     /**
      * PATCH /api/candidatures/{id}/clarifier
-     * Teacher initiates a chat/clarification regarding the application.
+     * Initiates a message thread with the group for clarifications.
      */
     @PatchMapping("/{id}/clarifier")
     @PreAuthorize("hasRole('ENSEIGNANT')")
@@ -90,12 +92,12 @@ public class CandidatureController {
 
     /**
      * DELETE /api/candidatures/{id}
-     * Student withdraws their application.
+     * Allows a student to withdraw their request before it is processed.
      */
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ETUDIANT')")
     public ResponseEntity<ApiResponse<Void>> annuler(@PathVariable Long id) {
         candidatureService.annulerCandidature(id);
-        return ResponseEntity.ok(ApiResponse.success("Candidature retirée", null));
+        return ResponseEntity.ok(ApiResponse.success("Candidature annulée avec succès", null));
     }
 }

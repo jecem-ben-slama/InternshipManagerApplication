@@ -9,7 +9,7 @@ public interface IMessageService {
 
     Page<MessageResponseDTO> getConversation(Long candidatureId, int page, int size);
 
-    Page<MessageResponseDTO> getAllMessagesByCandidature(Long candidatureId);
+    Page<MessageResponseDTO> getAllMessagesByCandidature(Long candidatureId,int page, int size);
 
     void deleteMessage(Long messageId);
 }
