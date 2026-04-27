@@ -1,6 +1,8 @@
 package com.iit.internship_manager.domain.models;
 
 import com.iit.internship_manager.domain.enums.SujetStatus;
+import com.iit.internship_manager.domain.enums.SujetType;
+
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -23,16 +25,23 @@ public class Sujet {
     private String description;
 
     @Enumerated(EnumType.STRING)
-    @Column(name="statut",length = 50)
-    private SujetStatus statut = SujetStatus.AVAILABLE;
+    private SujetStatus statut;
 
-    // The new technologies field
+    @Enumerated(EnumType.STRING)
+    private SujetType type; // PFA or PFE
+
+    // Always the teacher (supervisor)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "enseignant_id")
+    private Enseignant enseignant;
+
+    // Only filled if a student suggested the idea
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "proposant_id")
+    private Etudiant proposant;
+
     @ElementCollection
     @CollectionTable(name = "sujet_technologies", joinColumns = @JoinColumn(name = "sujet_id"))
     @Column(name = "technologie")
     private List<String> technologies = new ArrayList<>();
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "enseignant_id") // Best practice to explicitly name the FK
-    private Enseignant proposant;
 }

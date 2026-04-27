@@ -12,6 +12,8 @@ public interface SubjectRepository extends JpaRepository<Sujet, Long> {
 
     // Changing return type from List to Page
     Page<Sujet> findByStatut(SujetStatus statut, Pageable pageable);
+    
+    Page<Sujet> findByEnseignantId(Long teacherId, Pageable pageable);
 
     // Changing return type from List to Page
     Page<Sujet> findByProposantId(Long enseignantId, Pageable pageable);
