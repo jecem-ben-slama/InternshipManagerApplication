@@ -26,6 +26,9 @@ public interface CandidatureRepository extends JpaRepository<Candidature, Long> 
 
     List<Candidature> findByGroupeMembresId(Long studentId);
 
+    List<Candidature> findByGroupeMembresIdInAndStatutIn(
+            List<Long> memberIds,
+            List<DemandeStatus> statuts);
     // --- TEACHER VIEW ---
     Page<Candidature> findBySujetEnseignantId(Long teacherId, Pageable pageable);
 
@@ -35,4 +38,6 @@ public interface CandidatureRepository extends JpaRepository<Candidature, Long> 
     List<Candidature> findBySujetIdAndIdNot(Long sujetId, Long acceptedCandidatureId);
     
     Optional<Candidature> findByGroupeIdAndStatut(Long groupeId, DemandeStatus statut);
+    
+    boolean existsByGroupeIdAndSujetId(Long groupeId, Long sujetId);
 }

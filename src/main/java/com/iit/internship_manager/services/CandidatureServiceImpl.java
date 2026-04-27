@@ -23,36 +23,43 @@ public class CandidatureServiceImpl implements ICandidatureService {
     private final CandidatureRepository candidatureRepository;
     private final SubjectRepository subjectRepository;
     private final UserRepository userRepository;
-    private final IMessageService messageService; 
-    private final IGroupeService groupeService;   
+    private final IMessageService messageService;
+    private final IGroupeService groupeService;
     private final ISecurityContext securityContext;
     private final AffectationRepository affectationRepository;
 
-    /**
-     * Teacher Action: ACCEPT
-     */
     @Override
     @Transactional
     public void accepterEtudiant(Long candidatureId) {
         Candidature selected = getValidatedCandidatureForTeacher(candidatureId);
         Enseignant teacher = selected.getSujet().getEnseignant();
 
-        // 1. Logic Validation
+        // 1. State Guard: Only Pending or Clarification can be accepted
         if (selected.getStatut() != DemandeStatus.PENDING &&
                 selected.getStatut() != DemandeStatus.NEED_CLARIFICATION) {
-            throw new IllegalStateException("Seules les candidatures en attente ou en clarification peuvent être acceptées.");
+            throw new InvalidCandidatureStateException(
+                    "Cette candidature a déjà été traitée et ne peut plus être acceptée.");
         }
 
-        // 2. Business Rule: Quota Check
+        // 2. Race condition guard: re-verify all members are still free
+        for (Etudiant member : selected.getGroupe().getMembres()) {
+            if (affectationRepository.existsByGroupeMembresId(member.getId())) {
+                selected.setStatut(DemandeStatus.REJECTED_BY_SYSTEM);
+                candidatureRepository.save(selected);
+                throw new BadRequestException("L'étudiant " + member.getNom() + " est déjà affecté ailleurs.");
+            }
+        }
+
+        // 3. Quota Check
         if (teacher.getEncadrementsActuels() >= teacher.getQuotaAnnuel()) {
             throw new QuotaExceededException();
         }
 
-        // 3. Update Status
+        // 4. Update Status & Quota
         selected.setStatut(DemandeStatus.ACCEPTED_BY_TEACHER);
         teacher.setEncadrementsActuels(teacher.getEncadrementsActuels() + 1);
 
-        // 4. Create official Affectation
+        // 5. Create official Affectation
         Affectation affectation = new Affectation();
         affectation.setGroupe(selected.getGroupe());
         affectation.setEncadrant(teacher);
@@ -60,43 +67,48 @@ public class CandidatureServiceImpl implements ICandidatureService {
         affectation.setDateAffectation(LocalDateTime.now());
         affectation.setOriginalCandidature(selected);
 
+        // 6. Mark subject as TAKEN
+        selected.getSujet().setStatut(SujetStatus.TAKEN);
+
         affectationRepository.save(affectation);
-
-        // 5. Cleanup: Reject competing applications for these students
-        rejectOtherApplicationsForGroup(selected);
-
+        subjectRepository.save(selected.getSujet());
         userRepository.save(teacher);
         candidatureRepository.save(selected);
+
+        // 7. Cleanup: Bulk reject competing applications
+        rejectOtherApplicationsForGroup(selected);
     }
 
-    /**
-     * Student Action: APPLY
-     */
     @Override
     @Transactional
     public void postuler(Long sujetId, List<Long> partnerIds) {
         Utilisateur currentUser = securityContext.getCurrentUser();
         if (!(currentUser instanceof Etudiant student)) {
-            throw new UnauthorizedActionException("Seuls les étudiants peuvent postuler à des sujets.");
+            throw new UnauthorizedActionException("Seuls les étudiants peuvent postuler.");
         }
 
         Sujet sujet = subjectRepository.findById(sujetId)
                 .orElseThrow(() -> new ResourceNotFoundException("Sujet", sujetId));
 
-        if (sujet.getStatut() != SujetStatus.AVAILABLE) {
+        if (sujet.getStatut() != SujetStatus.AVAILABLE && sujet.getStatut() != SujetStatus.PENDING) {
             throw new SujetIndisponibleException();
         }
 
-        // Check if student is already affected to a validated internship
-        boolean alreadyAffected = candidatureRepository.findByGroupeMembresId(student.getId()).stream()
-                .anyMatch(c -> c.getStatut() == DemandeStatus.VALIDATED_BY_RESPONSABLE);
-
-        if (alreadyAffected) {
-            throw new BadRequestException("Vous êtes déjà affecté à un sujet.");
+        if (sujet.getProposant() != null && !sujet.getProposant().getId().equals(student.getId())) {
+            throw new UnauthorizedActionException("Ce sujet est réservé à l'étudiant qui l'a proposé.");
         }
 
-        // DECOUPLED: Delegate group logic to the IGroupeService
         Groupe group = groupeService.getOrCreateGroup(student, partnerIds);
+
+        for (Etudiant member : group.getMembres()) {
+            if (affectationRepository.existsByGroupeMembresId(member.getId())) {
+                throw new BadRequestException("L'étudiant " + member.getNom() + " est déjà affecté.");
+            }
+        }
+
+        if (candidatureRepository.existsByGroupeIdAndSujetId(group.getId(), sujetId)) {
+            throw new DuplicateCandidatureException();
+        }
 
         Candidature candidature = new Candidature();
         candidature.setGroupe(group);
@@ -107,11 +119,39 @@ public class CandidatureServiceImpl implements ICandidatureService {
     }
 
     @Override
+    @Transactional
+    public void refuserEtudiant(Long candidatureId) {
+        Candidature candidature = getValidatedCandidatureForTeacher(candidatureId);
+
+        // NEW GUARD: Prevent refusing an already accepted student
+        verifyCandidatureIsModifiable(candidature);
+
+        candidature.setStatut(DemandeStatus.REJECTED_BY_TEACHER);
+        candidatureRepository.save(candidature);
+    }
+
+    @Override
+    @Transactional
+    public void demanderClarification(Long candidatureId, String justification) {
+        Candidature candidature = getValidatedCandidatureForTeacher(candidatureId);
+
+        // NEW GUARD: Prevent clarifying an already accepted/finalized student
+        verifyCandidatureIsModifiable(candidature);
+
+        candidature.setStatut(DemandeStatus.NEED_CLARIFICATION);
+        candidatureRepository.save(candidature);
+
+        MessageRequest firstMsg = new MessageRequest();
+        firstMsg.setContent(justification);
+        messageService.sendMessage(candidatureId, firstMsg);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public Page<CandidatureResponseDTO> getPagedCandidatures(DemandeStatus status, int page, int size) {
         Utilisateur user = securityContext.getCurrentUser();
         Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
-        
+
         Page<Candidature> resultPage;
         if (user instanceof Etudiant) {
             resultPage = (status != null)
@@ -128,45 +168,38 @@ public class CandidatureServiceImpl implements ICandidatureService {
 
     @Override
     @Transactional
-    public void refuserEtudiant(Long candidatureId) {
-        Candidature candidature = getValidatedCandidatureForTeacher(candidatureId);
-        candidature.setStatut(DemandeStatus.REJECTED_BY_TEACHER);
-        candidatureRepository.save(candidature);
-    }
-
-    @Override
-    @Transactional
-    public void demanderClarification(Long candidatureId, String justification) {
-        Candidature candidature = getValidatedCandidatureForTeacher(candidatureId);
-        candidature.setStatut(DemandeStatus.NEED_CLARIFICATION);
-        candidatureRepository.save(candidature);
-
-        // Uses IMessageService to start the discussion
-        MessageRequest firstMsg = new MessageRequest();
-        firstMsg.setContent(justification);
-        messageService.sendMessage(candidatureId, firstMsg);
-    }
-
-    @Override
-    @Transactional
     public void annulerCandidature(Long id) {
         Candidature candidature = candidatureRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Candidature", id));
 
-        Long currentUserId = securityContext.getCurrentUserId();
-        boolean isMember = candidature.getGroupe().getMembres().stream()
-                .anyMatch(m -> m.getId().equals(currentUserId));
+        if (!isMember(candidature)) {
+            throw new UnauthorizedActionException("Accès non autorisé.");
+        }
 
-        if (!isMember) throw new UnauthorizedActionException("Accès non autorisé.");
-        
         if (candidature.getStatut() != DemandeStatus.PENDING) {
-            throw new IllegalStateException("Impossible d'annuler une candidature déjà traitée.");
+            throw new InvalidCandidatureStateException("Impossible d'annuler une candidature déjà traitée.");
         }
 
         candidatureRepository.delete(candidature);
     }
 
-    // --- Private Helpers ---
+    // -------------------------------------------------------------------------
+    // Private Helpers
+    // -------------------------------------------------------------------------
+
+    private void verifyCandidatureIsModifiable(Candidature c) {
+        if (c.getStatut() == DemandeStatus.ACCEPTED_BY_TEACHER ||
+                c.getStatut() == DemandeStatus.VALIDATED_BY_RESPONSABLE) {
+            throw new InvalidCandidatureStateException(
+                    "Une candidature acceptée ne peut plus être modifiée par l'enseignant.");
+        }
+    }
+
+    private boolean isMember(Candidature c) {
+        Long currentUserId = securityContext.getCurrentUserId();
+        return c.getGroupe().getMembres().stream()
+                .anyMatch(m -> m.getId().equals(currentUserId));
+    }
 
     private Candidature getValidatedCandidatureForTeacher(Long id) {
         Candidature c = candidatureRepository.findById(id)
@@ -179,15 +212,20 @@ public class CandidatureServiceImpl implements ICandidatureService {
     }
 
     private void rejectOtherApplicationsForGroup(Candidature successfulApp) {
-        successfulApp.getGroupe().getMembres().forEach(student -> {
-            List<Candidature> others = candidatureRepository.findByGroupeMembresId(student.getId());
-            others.stream()
+        List<Long> memberIds = successfulApp.getGroupe().getMembres()
+                .stream()
+                .map(Etudiant::getId)
+                .toList();
+
+        List<Candidature> toReject = candidatureRepository
+                .findByGroupeMembresIdInAndStatutIn(
+                        memberIds,
+                        List.of(DemandeStatus.PENDING, DemandeStatus.NEED_CLARIFICATION))
+                .stream()
                 .filter(app -> !app.getId().equals(successfulApp.getId()))
-                .filter(app -> app.getStatut() == DemandeStatus.PENDING || app.getStatut() == DemandeStatus.NEED_CLARIFICATION)
-                .forEach(app -> {
-                    app.setStatut(DemandeStatus.REJECTED_BY_SYSTEM);
-                    candidatureRepository.save(app);
-                });
-        });
+                .toList();
+
+        toReject.forEach(app -> app.setStatut(DemandeStatus.REJECTED_BY_SYSTEM));
+        candidatureRepository.saveAll(toReject);
     }
 }

@@ -1,5 +1,4 @@
 package com.iit.internship_manager.services;
-
 import com.iit.internship_manager.domain.models.*;
 import com.iit.internship_manager.domain.enums.*;
 import com.iit.internship_manager.domain.exceptions.*;
@@ -14,7 +13,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -28,7 +26,6 @@ public class SubjectServiceImpl implements ISubjectService {
     private final IGroupeService groupeService;
     private final ISecurityContext securityContext;
 
-    // --- RESTORED MISSING METHODS ---
 
     @Transactional(readOnly = true)
     public Page<SujetResponseDTO> findAll(Pageable pageable) {
@@ -54,7 +51,7 @@ public class SubjectServiceImpl implements ISubjectService {
         Sujet sujet = subjectRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Sujet", id));
 
-        // Ownership Check via Decoupled Security
+        // Ownership Check 
         String currentUserEmail = securityContext.getCurrentUserEmail();
         boolean isTeacherOwner = sujet.getEnseignant().getEmail().equals(currentUserEmail);
         boolean isStudentOwner = sujet.getProposant() != null
@@ -96,25 +93,36 @@ public class SubjectServiceImpl implements ISubjectService {
 
     @Transactional
     public SujetResponseDTO studentProposeSujet(Long teacherId, SujetRequest dto) {
+        // 1. Better type checking for Current User
         Utilisateur currentUser = securityContext.getCurrentUser();
-        if (!(currentUser instanceof Etudiant student)) {
+        if (!(currentUser instanceof Etudiant)) {
             throw new UnauthorizedActionException("Seuls les étudiants peuvent proposer des sujets.");
         }
+        Etudiant student = (Etudiant) currentUser;
 
-        Enseignant teacher = (Enseignant) userRepository.findById(teacherId)
-                .filter(u -> u instanceof Enseignant)
+        // 2. Safer Teacher fetching (Avoids ClassCastException)
+        Enseignant teacher = userRepository.findEnseignantById(teacherId)
                 .orElseThrow(() -> new ResourceNotFoundException("Enseignant", teacherId));
 
+        // 3. Logic validation
         validateMembersAvailability(student, dto.getPartnerIds());
-        Groupe group = groupeService.getOrCreateGroup(student, dto.getPartnerIds());
 
+        Groupe group = groupeService.getOrCreateGroup(student, dto.getPartnerIds());
+        if (group == null) {
+            throw new IllegalStateException("Erreur lors de la création ou récupération du groupe.");
+        }
+
+        // 4. Mapping
         Sujet sujet = new Sujet();
         mapCommonFields(sujet, dto);
         sujet.setEnseignant(teacher);
         sujet.setProposant(student);
-        sujet.setStatut(SujetStatus.PENDING);
+        sujet.setStatut(SujetStatus.PROPOSED_BY_STUDENT);
 
+        // 5. Execution
         Sujet savedSujet = subjectRepository.save(sujet);
+
+        // Ensure the ID is generated before creating the candidature
         createAutomaticCandidature(group, savedSujet);
 
         return SujetResponseDTO.fromEntity(savedSujet);

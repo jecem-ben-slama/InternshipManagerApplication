@@ -24,10 +24,8 @@ public class CandidatureController {
 
     private final ICandidatureService candidatureService; // Updated to Interface
 
-    /**
-     * GET /api/candidatures/me
-     * Context-aware: Returns student applications or teacher received requests.
-     */
+    //* Get candidatures of the currently authenticated user, with optional filtering by status.
+    // Accessible to both students and teachers, but shows data based on role (e.g., students see only their own candidatures, teachers see candidatures for their subjects).
     @GetMapping("/me")
     @PreAuthorize("hasAnyRole('ETUDIANT', 'ENSEIGNANT')")
     public ResponseEntity<ApiResponse<Page<CandidatureResponseDTO>>> getMyCandidatures(
@@ -39,11 +37,8 @@ public class CandidatureController {
         return ResponseEntity.ok(ApiResponse.success("Liste des candidatures récupérée", list));
     }
 
-    /**
-     * POST /api/candidatures/postuler/{sujetId}
-     * Standardized endpoint for applying to a specific subject.
-     */
-    @PostMapping("/postuler/{sujetId}")
+   //* Syudent applies to a subject 
+   // the partnerIds is optional and can be empty, but if provided, it must not contain the student's own ID and must correspond to valid students in the system.
     @PreAuthorize("hasRole('ETUDIANT')")
     public ResponseEntity<ApiResponse<Void>> postuler(
             @PathVariable Long sujetId,
@@ -55,10 +50,8 @@ public class CandidatureController {
                 HttpStatus.CREATED);
     }
 
-    /**
-     * PATCH /api/candidatures/{id}/accepter
-     * Logic for quota management and auto-rejection is handled in the service.
-     */
+  //* Accept Application
+  // When a teacher accepts an application, the system should automatically create an "Affectation" linking the student group to the subject.
     @PatchMapping("/{id}/accepter")
     @PreAuthorize("hasRole('ENSEIGNANT')")
     public ResponseEntity<ApiResponse<Void>> accepter(@PathVariable Long id) {

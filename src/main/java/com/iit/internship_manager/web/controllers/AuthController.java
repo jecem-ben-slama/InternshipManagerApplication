@@ -20,10 +20,8 @@ public class AuthController {
 
     private final IAuthenticationService authenticationService;
 
-    /**
-     * POST /api/auth/register
-     * Only Admin_IT can create new accounts (Students or Teachers).
-     */
+   //* Register
+
     @PostMapping("/register")
     @PreAuthorize("hasRole('ADMIN_IT')")
     @ResponseStatus(HttpStatus.CREATED)
@@ -32,10 +30,7 @@ public class AuthController {
         return ApiResponse.success("Utilisateur créé avec succès", response);
     }
 
-    /**
-     * POST /api/auth/login
-     * Returns the JWT token and the user's profile data.
-     */
+    // * Login
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest request) {
         AuthResponse response = authenticationService.login(request);
