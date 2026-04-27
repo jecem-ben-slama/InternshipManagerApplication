@@ -15,7 +15,7 @@ public class Affectation {
     private Long id;
 
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "groupe_id") // Changed from etudiant_id
+    @JoinColumn(name = "groupe_id")
     private Groupe groupe;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -25,7 +25,10 @@ public class Affectation {
     private Sujet sujet;
 
     private LocalDateTime dateAffectation = LocalDateTime.now();
-    @OneToOne // One successful application leads to one assignment
+
+    @OneToOne
     @JoinColumn(name = "candidature_id")
     private Candidature originalCandidature;
+
+    private String status = "IN_PROGRESS";
 }
