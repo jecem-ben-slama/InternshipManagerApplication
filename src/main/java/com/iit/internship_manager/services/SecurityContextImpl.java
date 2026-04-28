@@ -1,6 +1,7 @@
 package com.iit.internship_manager.services;
 
 import com.iit.internship_manager.domain.exceptions.UnauthorizedActionException;
+import com.iit.internship_manager.domain.models.Enseignant;
 import com.iit.internship_manager.domain.models.Utilisateur;
 import com.iit.internship_manager.repositories.UserRepository;
 import com.iit.internship_manager.services.interfaces.ISecurityContext;
@@ -36,5 +37,16 @@ public class SecurityContextImpl implements ISecurityContext {
         return SecurityContextHolder.getContext().getAuthentication().getAuthorities()
                 .stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_" + role));
+    }
+    @Override
+    public boolean isResponsablePFE() {
+        Utilisateur user = getCurrentUser();
+        
+        // Only Enseignants can be Responsables
+        if (user instanceof Enseignant teacher) {
+            return teacher.isResponsablePFE();
+        }
+        
+        return false;
     }
 }

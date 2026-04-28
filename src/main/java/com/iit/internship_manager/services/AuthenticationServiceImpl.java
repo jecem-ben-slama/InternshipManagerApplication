@@ -1,5 +1,4 @@
 package com.iit.internship_manager.services;
-
 import com.iit.internship_manager.domain.models.Utilisateur;
 import com.iit.internship_manager.domain.exceptions.AccountDeactivatedException;
 import com.iit.internship_manager.domain.exceptions.InvalidCredentialsException;
@@ -12,7 +11,6 @@ import com.iit.internship_manager.web.dtos.LoginRequest;
 import com.iit.internship_manager.web.dtos.AuthResponse;
 import com.iit.internship_manager.web.dtos.UserResponseDTO;
 import com.iit.internship_manager.web.dtos.registration.RegisterRequest;
-
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -34,27 +32,21 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
         Utilisateur user = userRepository.findByEmail(req.getEmail())
                 .orElseThrow(InvalidCredentialsException::new);
 
-        // 2. Soft-Delete Protection
         if (!user.isActive()) {
             throw new AccountDeactivatedException(
                     "Ce compte est désactivé. Veuillez contacter l'administration.");
         }
-
-        // 3. Password Check
         if (!passwordEncoder.matches(req.getPassword(), user.getPassword())) {
             throw new InvalidCredentialsException();
         }
-
-        // 4. Token Generation
         String token = jwtUtils.generateToken(user);
-
-        // 5. Clean Return (Using the AuthResponse DTO)
         return AuthResponse.builder()
                 .token(token)
                 .user(UserResponseDTO.fromEntity(user))
                 .build();
     }
 
+    // * Register a new user (Admin, Student, Teacher)
     @Override
     @Transactional
     public AuthResponse register(RegisterRequest request) {

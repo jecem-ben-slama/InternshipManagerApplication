@@ -10,4 +10,6 @@ public interface ISecurityContext {
     String getCurrentUserEmail();
 
     boolean hasRole(String role);
+    
+    boolean isResponsablePFE();
 }
