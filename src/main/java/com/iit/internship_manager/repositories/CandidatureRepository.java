@@ -26,6 +26,7 @@ public interface CandidatureRepository extends JpaRepository<Candidature, Long> 
 
     List<Candidature> findByGroupeMembresId(Long studentId);
 
+    boolean existsBySujetId(Long sujetId);
     List<Candidature> findByGroupeMembresIdInAndStatutIn(
             List<Long> memberIds,
             List<DemandeStatus> statuts);

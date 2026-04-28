@@ -1,11 +1,10 @@
 package com.iit.internship_manager.services;
+
 import com.iit.internship_manager.domain.models.*;
 import com.iit.internship_manager.domain.enums.*;
 import com.iit.internship_manager.domain.exceptions.*;
 import com.iit.internship_manager.repositories.*;
-import com.iit.internship_manager.services.interfaces.ISecurityContext;
-import com.iit.internship_manager.services.interfaces.ISubjectService;
-import com.iit.internship_manager.services.interfaces.IGroupeService;
+import com.iit.internship_manager.services.interfaces.*;
 import com.iit.internship_manager.web.dtos.SujetRequest;
 import com.iit.internship_manager.web.dtos.SujetResponseDTO;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +12,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -23,16 +23,19 @@ public class SubjectServiceImpl implements ISubjectService {
     private final SubjectRepository subjectRepository;
     private final UserRepository userRepository;
     private final CandidatureRepository candidatureRepository;
+    private final AffectationRepository affectationRepository;
     private final IGroupeService groupeService;
     private final ISecurityContext securityContext;
 
-
+    @Override
     @Transactional(readOnly = true)
     public Page<SujetResponseDTO> findAll(Pageable pageable) {
+        // Uses JOIN FETCH internally in repository to avoid N+1
         return subjectRepository.findAll(pageable)
                 .map(SujetResponseDTO::fromEntity);
     }
 
+    @Override
     @Transactional(readOnly = true)
     public SujetResponseDTO findById(Long id) {
         return subjectRepository.findByIdWithDetails(id)
@@ -40,24 +43,28 @@ public class SubjectServiceImpl implements ISubjectService {
                 .orElseThrow(() -> new ResourceNotFoundException("Sujet", id));
     }
 
+    @Override
     @Transactional(readOnly = true)
     public Page<SujetResponseDTO> getSubjectsByStatus(SujetStatus status, Pageable pageable) {
         return subjectRepository.findByStatut(status, pageable)
                 .map(SujetResponseDTO::fromEntity);
     }
 
+    @Override
     @Transactional
     public SujetResponseDTO updateSujet(Long id, SujetRequest dto) {
-        Sujet sujet = subjectRepository.findById(id)
+        Sujet sujet = subjectRepository.findByIdWithDetails(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Sujet", id));
-                if (!subjectRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Sujet", id);
-        }
-        // Potential check: prevent deletion if students are already assigned/validated
 
-        // Ownership Check 
+        // 1. Status Guard: Lock if already taken
+        if (sujet.getStatut() == SujetStatus.TAKEN) {
+            throw new UnauthorizedActionException("Ce sujet est déjà assigné et ne peut plus être modifié.");
+        }
+
+        // 2. Ownership Check (Null-safe)
         String currentUserEmail = securityContext.getCurrentUserEmail();
-        boolean isTeacherOwner = sujet.getEnseignant().getEmail().equals(currentUserEmail);
+        boolean isTeacherOwner = sujet.getEnseignant() != null
+                && sujet.getEnseignant().getEmail().equals(currentUserEmail);
         boolean isStudentOwner = sujet.getProposant() != null
                 && sujet.getProposant().getEmail().equals(currentUserEmail);
 
@@ -69,17 +76,26 @@ public class SubjectServiceImpl implements ISubjectService {
         return SujetResponseDTO.fromEntity(subjectRepository.save(sujet));
     }
 
+    @Override
     @Transactional
     public void deleteSujet(Long id) {
-        if (!subjectRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Sujet", id);
+        Sujet sujet = subjectRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Sujet", id));
+
+        // 1. Status Guard
+        if (sujet.getStatut() == SujetStatus.TAKEN) {
+            throw new UnauthorizedActionException("Impossible de supprimer un sujet déjà assigné.");
         }
-        // Potential check: prevent deletion if students are already assigned/validated
-        subjectRepository.deleteById(id);
+
+        // 2. Relationship Guard
+        if (candidatureRepository.existsBySujetId(id)) {
+            throw new UnauthorizedActionException("Ce sujet a des candidatures actives et ne peut être supprimé.");
+        }
+
+        subjectRepository.delete(sujet);
     }
 
-    // --- PROPOSAL LOGIC ---
-
+    @Override
     @Transactional
     public SujetResponseDTO teacherProposeSujet(SujetRequest dto) {
         Utilisateur currentUser = securityContext.getCurrentUser();
@@ -95,49 +111,45 @@ public class SubjectServiceImpl implements ISubjectService {
         return SujetResponseDTO.fromEntity(subjectRepository.save(sujet));
     }
 
+    @Override
     @Transactional
     public SujetResponseDTO studentProposeSujet(Long teacherId, SujetRequest dto) {
-        // 1. Better type checking for Current User
         Utilisateur currentUser = securityContext.getCurrentUser();
-        if (!(currentUser instanceof Etudiant)) {
+        if (!(currentUser instanceof Etudiant student)) {
             throw new UnauthorizedActionException("Seuls les étudiants peuvent proposer des sujets.");
         }
-        Etudiant student = (Etudiant) currentUser;
 
-        // 2. Safer Teacher fetching (Avoids ClassCastException)
+        // 1. Availability verification for ALL group members
+        validateMembersAvailability(student, dto.getPartnerIds());
+
         Enseignant teacher = userRepository.findEnseignantById(teacherId)
                 .orElseThrow(() -> new ResourceNotFoundException("Enseignant", teacherId));
 
-        // 3. Logic validation
-        validateMembersAvailability(student, dto.getPartnerIds());
-
         Groupe group = groupeService.getOrCreateGroup(student, dto.getPartnerIds());
-        if (group == null) {
-            throw new IllegalStateException("Erreur lors de la création ou récupération du groupe.");
-        }
 
-        // 4. Mapping
+        // 2. Create Subject
         Sujet sujet = new Sujet();
         mapCommonFields(sujet, dto);
         sujet.setEnseignant(teacher);
         sujet.setProposant(student);
         sujet.setStatut(SujetStatus.PROPOSED_BY_STUDENT);
 
-        // 5. Execution
         Sujet savedSujet = subjectRepository.save(sujet);
 
-        // Ensure the ID is generated before creating the candidature
+        // 3. Create Automatic Candidature
         createAutomaticCandidature(group, savedSujet);
 
         return SujetResponseDTO.fromEntity(savedSujet);
     }
 
+    @Override
     @Transactional(readOnly = true)
     public Page<SujetResponseDTO> getSubjectsByCurrentTeacher(Pageable pageable) {
         return subjectRepository.findByEnseignantId(securityContext.getCurrentUserId(), pageable)
                 .map(SujetResponseDTO::fromEntity);
     }
 
+    @Override
     @Transactional
     public SujetResponseDTO updateSujetStatus(Long id, SujetStatus status) {
         Utilisateur user = securityContext.getCurrentUser();
@@ -160,12 +172,21 @@ public class SubjectServiceImpl implements ISubjectService {
         if (partnerIds != null)
             allMemberIds.addAll(partnerIds);
 
-        for (Long studentId : allMemberIds) {
-            boolean alreadyAffected = candidatureRepository.findByGroupeMembresId(studentId).stream()
-                    .anyMatch(c -> c.getStatut() == DemandeStatus.VALIDATED_BY_RESPONSABLE);
+        // 1. Check official Affectations (Ground Truth)
+        boolean anyMemberAffected = affectationRepository.existsByGroupeMembresIdIn(allMemberIds);
+        if (anyMemberAffected) {
+            throw new UnauthorizedActionException("Un ou plusieurs membres du groupe sont déjà affectés.");
+        }
 
-            if (alreadyAffected) {
-                throw new UnauthorizedActionException("L'étudiant ID " + studentId + " est déjà affecté.");
+        // 2. Check for PENDING/ACCEPTED candidates to prevent "ghost" double-booking
+        for (Long studentId : allMemberIds) {
+            boolean hasActiveApplication = candidatureRepository.findByGroupeMembresId(studentId).stream()
+                    .anyMatch(c -> c.getStatut() == DemandeStatus.VALIDATED_BY_RESPONSABLE
+                            || c.getStatut() == DemandeStatus.ACCEPTED_BY_TEACHER);
+
+            if (hasActiveApplication) {
+                throw new UnauthorizedActionException(
+                        "L'étudiant ID " + studentId + " a déjà un sujet en cours de validation.");
             }
         }
     }

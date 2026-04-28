@@ -86,6 +86,7 @@ public class CandidatureServiceImpl implements ICandidatureService {
             throw new UnauthorizedActionException("Seuls les étudiants peuvent postuler.");
         }
 
+        // 1. Fetch Subject and check availability
         Sujet sujet = subjectRepository.findById(sujetId)
                 .orElseThrow(() -> new ResourceNotFoundException("Sujet", sujetId));
 
@@ -93,30 +94,38 @@ public class CandidatureServiceImpl implements ICandidatureService {
             throw new SujetIndisponibleException();
         }
 
+        // 2. Reserved subject check
         if (sujet.getProposant() != null && !sujet.getProposant().getId().equals(student.getId())) {
             throw new UnauthorizedActionException("Ce sujet est réservé à l'étudiant qui l'a proposé.");
         }
 
+        // 3. Get or Create Group
         Groupe group = groupeService.getOrCreateGroup(student, partnerIds);
 
-        for (Etudiant member : group.getMembres()) {
-            if (affectationRepository.existsByGroupeMembresId(member.getId())) {
-                throw new BadRequestException("L'étudiant " + member.getNom() + " est déjà affecté.");
-            }
+        // 4. CRITICAL VERIFICATION: Check if ANY member has an affectation
+        // We fetch all member IDs to perform a single query check
+        List<Long> memberIds = group.getMembres().stream().map(Etudiant::getId).toList();
+
+        // Efficient check: One query instead of a loop
+        boolean anyMemberAlreadyAffected = affectationRepository.existsByGroupeMembresIdIn(memberIds);
+
+        if (anyMemberAlreadyAffected) {
+            throw new BadRequestException("Un ou plusieurs membres du groupe sont déjà affectés à un sujet.");
         }
 
+        // 5. Check for duplicate candidature
         if (candidatureRepository.existsByGroupeIdAndSujetId(group.getId(), sujetId)) {
             throw new DuplicateCandidatureException();
         }
 
+        // 6. Save Candidature
         Candidature candidature = new Candidature();
         candidature.setGroupe(group);
         candidature.setSujet(sujet);
         candidature.setStatut(DemandeStatus.PENDING);
 
         candidatureRepository.save(candidature);
-    }
-
+    }  
     @Override
     @Transactional
     public void refuserEtudiant(Long candidatureId) {

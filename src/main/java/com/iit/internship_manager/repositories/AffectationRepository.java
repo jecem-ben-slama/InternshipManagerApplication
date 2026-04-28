@@ -19,6 +19,7 @@ public interface AffectationRepository extends JpaRepository<Affectation, Long> 
     @Query("SELECT COUNT(a) > 0 FROM Affectation a JOIN a.groupe g JOIN g.membres m WHERE m.id = :studentId")
     boolean existsByStudentId(@Param("studentId") Long studentId);
 
+    boolean existsByGroupeMembresIdIn(List<Long> memberIds);
     // 2. Fetch for Responsable/Teacher View (Optimized with JOIN FETCH)
     // Note: countQuery is needed for Pageable when using JOIN FETCH
     @Query(value = "SELECT a FROM Affectation a " +
