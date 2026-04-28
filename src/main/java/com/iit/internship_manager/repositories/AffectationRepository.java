@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import com.iit.internship_manager.domain.enums.DepartmentType;
 
 import java.util.List;
 import java.util.Optional;
@@ -46,6 +47,15 @@ public interface AffectationRepository extends JpaRepository<Affectation, Long> 
     List<Affectation> findByEncadrantId(@Param("teacherId") Long teacherId);
     
     boolean existsByGroupeMembresId(Long studentId);
+    // Add these to AffectationRepository.java
+
+// Count all active internships in a department
+@Query("SELECT COUNT(a) FROM Affectation a WHERE a.encadrant.department = :dept")
+long countByDepartment(@Param("dept") DepartmentType dept);
+
+// Find all affectations for a department (Responsable PFE view)
+@Query("SELECT a FROM Affectation a WHERE a.encadrant.department = :dept")
+Page<Affectation> findAllByDepartment(@Param("dept") DepartmentType dept, Pageable pageable);
 
     // This is the custom query version we added earlier
 

@@ -25,8 +25,8 @@ public class AuthController {
     @PostMapping("/register")
     @PreAuthorize("hasRole('ADMIN_IT')")
     @ResponseStatus(HttpStatus.CREATED)
-    public ApiResponse<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
-        AuthResponse response = authenticationService.register(request);
+    public ApiResponse<UserResponseDTO> register(@Valid @RequestBody RegisterRequest request) {
+        UserResponseDTO response = authenticationService.register(request);
         return ApiResponse.success("Utilisateur créé avec succès", response);
     }
 

@@ -1,5 +1,6 @@
 package com.iit.internship_manager.services;
 
+import com.iit.internship_manager.domain.enums.DepartmentType;
 import com.iit.internship_manager.domain.exceptions.ResourceNotFoundException;
 import com.iit.internship_manager.domain.exceptions.UnauthorizedActionException;
 import com.iit.internship_manager.domain.models.Utilisateur;
@@ -56,7 +57,12 @@ public class UserServiceImpl implements IUserService {
         user.setActive(false);
         userRepository.save(user);
     }
-
+    @Transactional(readOnly = true)
+public Page<UserResponseDTO> findAllByDepartment(DepartmentType department, int page, int size) {
+    Pageable pageable = PageRequest.of(page, size);
+    return userRepository.findAllByDepartmentAndActiveTrue(pageable, department)
+            .map(UserResponseDTO::fromEntity);
+}
     @Transactional
     public void reactivate(Long id) {
         Utilisateur user = userRepository.findById(id)

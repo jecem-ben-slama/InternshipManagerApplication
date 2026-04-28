@@ -13,7 +13,9 @@ public class SujetResponseDTO {
     private String description;
     private String statut;
     private List<String> technologies;
-    private ProposantSummaryDTO proposant;
+    // Changed from ProposantSummaryDTO to UserResponseDTO to get full polymorphic
+    // data
+    private UserResponseDTO proposant;
 
     /**
      * Static factory method to convert Entity to DTO
@@ -27,15 +29,15 @@ public class SujetResponseDTO {
         dto.setStatut(sujet.getStatut().name());
         dto.setTechnologies(sujet.getTechnologies());
 
-        if (sujet.getProposant() != null) {
-            dto.setProposant(ProposantSummaryDTO.builder()
-                    .id(sujet.getProposant().getId())
-                    .nom(sujet.getProposant().getNom())
-                    .prenom(sujet.getProposant().getPrenom())
-                    .email(sujet.getProposant().getEmail())
-                    .role(sujet.getProposant().getRole().name())
-                    .build());
+        // Logic to find the actual creator/proposant
+        if (sujet.getEnseignant() != null) {
+            // If a teacher owns/proposed it
+            dto.setProposant(UserResponseDTO.fromEntity(sujet.getEnseignant()));
+        } else if (sujet.getProposant() != null) {
+            // If a student suggested it
+            dto.setProposant(UserResponseDTO.fromEntity(sujet.getProposant()));
         }
+
         return dto;
     }
 }

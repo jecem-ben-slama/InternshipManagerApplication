@@ -1,5 +1,6 @@
 package com.iit.internship_manager.web.dtos;
 
+import com.iit.internship_manager.domain.enums.DepartmentType; // New Import
 import com.iit.internship_manager.domain.enums.Role;
 import com.iit.internship_manager.domain.enums.SpecialiteType;
 import com.iit.internship_manager.domain.models.AdminIT;
@@ -25,6 +26,7 @@ public class UserResponseDTO {
     private Role role;
     private boolean active;
     private String userType;
+    private DepartmentType department; // Added centralized field
 
     // Student specific fields
     private String matricule;
@@ -45,7 +47,8 @@ public class UserResponseDTO {
                 .nom(user.getNom())
                 .prenom(user.getPrenom())
                 .role(user.getRole())
-                .active(user.isActive());
+                .active(user.isActive())
+                .department(user.getDepartment()); // Map the new centralized field
 
         if (user instanceof Etudiant etudiant) {
             builder.userType("STUDENT")

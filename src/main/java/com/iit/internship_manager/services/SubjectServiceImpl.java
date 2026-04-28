@@ -35,7 +35,7 @@ public class SubjectServiceImpl implements ISubjectService {
 
     @Transactional(readOnly = true)
     public SujetResponseDTO findById(Long id) {
-        return subjectRepository.findById(id)
+        return subjectRepository.findByIdWithDetails(id)
                 .map(SujetResponseDTO::fromEntity)
                 .orElseThrow(() -> new ResourceNotFoundException("Sujet", id));
     }
@@ -50,6 +50,10 @@ public class SubjectServiceImpl implements ISubjectService {
     public SujetResponseDTO updateSujet(Long id, SujetRequest dto) {
         Sujet sujet = subjectRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Sujet", id));
+                if (!subjectRepository.existsById(id)) {
+            throw new ResourceNotFoundException("Sujet", id);
+        }
+        // Potential check: prevent deletion if students are already assigned/validated
 
         // Ownership Check 
         String currentUserEmail = securityContext.getCurrentUserEmail();

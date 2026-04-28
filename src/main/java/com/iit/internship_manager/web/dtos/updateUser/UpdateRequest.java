@@ -2,6 +2,7 @@ package com.iit.internship_manager.web.dtos.updateUser;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.iit.internship_manager.domain.enums.DepartmentType; // New Import
 import com.iit.internship_manager.domain.enums.Role;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -20,7 +21,7 @@ public abstract class UpdateRequest {
     @NotNull(message = "L'ID est obligatoire")
     private Long id;
 
-    private String userType; // Populated automatically by Jackson
+    private String userType;
 
     @NotNull(message = "Le rôle est obligatoire")
     private Role role;
@@ -34,4 +35,7 @@ public abstract class UpdateRequest {
     @NotBlank(message = "L'email est obligatoire")
     @Email(message = "Format d'email invalide")
     private String email;
+
+    @NotNull(message = "Le département est obligatoire")
+    private DepartmentType department; // Centralized for updates
 }

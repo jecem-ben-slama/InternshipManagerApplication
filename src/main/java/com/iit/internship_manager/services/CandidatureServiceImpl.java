@@ -68,7 +68,6 @@ public class CandidatureServiceImpl implements ICandidatureService {
         affectation.setOriginalCandidature(selected);
 
         // 6. Mark subject as TAKEN
-        selected.getSujet().setStatut(SujetStatus.TAKEN);
 
         affectationRepository.save(affectation);
         subjectRepository.save(selected.getSujet());

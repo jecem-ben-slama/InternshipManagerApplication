@@ -4,7 +4,6 @@ import com.iit.internship_manager.domain.enums.*;
 import com.iit.internship_manager.domain.exceptions.EmailAlreadyUsedException;
 import com.iit.internship_manager.domain.exceptions.MatriculeAlreadyUsedException;
 import com.iit.internship_manager.domain.models.Etudiant;
-import com.iit.internship_manager.infrastucture.security.JwtUtils; // New Injection
 import com.iit.internship_manager.repositories.EtudiantRepository;
 import com.iit.internship_manager.web.dtos.*;
 import com.iit.internship_manager.web.dtos.registration.StudentRegisterRequest;
@@ -21,8 +20,6 @@ public class StudentRegistrationStrategy
 
     private final EtudiantRepository etudiantRepository;
     private final PasswordEncoder passwordEncoder;
-    private final JwtUtils jwtUtils; // Added to generate token upon registration
-
     @Override
     public UserType getSupportedType() {
         return UserType.STUDENT;
@@ -30,7 +27,7 @@ public class StudentRegistrationStrategy
 
     @Override
     @Transactional
-    public AuthResponse register(StudentRegisterRequest req) {
+    public UserResponseDTO register(StudentRegisterRequest req) {
         // 1. Validations
         if (etudiantRepository.existsByEmail(req.getEmail())) {
             throw new EmailAlreadyUsedException(req.getEmail());
@@ -45,19 +42,22 @@ public class StudentRegistrationStrategy
         e.setPassword(passwordEncoder.encode(req.getPassword()));
         e.setNom(req.getNom());
         e.setPrenom(req.getPrenom());
+
+        // NEW: Centralized department field inherited from RegisterRequest
+        e.setDepartment(req.getDepartment());
+
         e.setRole(Role.ETUDIANT);
         e.setMatricule(req.getMatricule());
         e.setFiliere(req.getFiliere());
         e.setAnneeEtude(req.getAnneeEtude());
-        e.setActive(true); // Ensure new students are active by default
+        e.setActive(true);
 
         // 3. Persist
         etudiantRepository.save(e);
 
-        // 4. Automatic Login: Generate token for the new student
-        String token = jwtUtils.generateToken(e);
+        // 4. Automatic Login
 
-        // 5. Return updated AuthResponse (Fixes the undefined method error)
-        return AuthResponse.of(e, token);
+        // 5. Return Response
+        return UserResponseDTO.fromEntity(e);
     }
 }

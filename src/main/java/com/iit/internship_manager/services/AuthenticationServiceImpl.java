@@ -49,7 +49,7 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
     // * Register a new user (Admin, Student, Teacher)
     @Override
     @Transactional
-    public AuthResponse register(RegisterRequest request) {
+    public UserResponseDTO register(RegisterRequest request) {
         RegistrationStrategy<RegisterRequest> strategy = registrationFactory.resolve(request.getUserType());
         return strategy.register(request);
     }

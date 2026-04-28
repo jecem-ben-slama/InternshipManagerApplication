@@ -3,7 +3,6 @@ package com.iit.internship_manager.services.registration;
 import com.iit.internship_manager.domain.enums.*;
 import com.iit.internship_manager.domain.models.AdminIT;
 import com.iit.internship_manager.repositories.UserRepository;
-import com.iit.internship_manager.infrastucture.security.JwtUtils; // New Injection
 import com.iit.internship_manager.web.dtos.*;
 import com.iit.internship_manager.web.dtos.registration.AdminRegisterRequest;
 import com.iit.internship_manager.domain.exceptions.EmailAlreadyUsedException;
@@ -17,9 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class AdminITRegistrationStrategy
         implements RegistrationStrategy<AdminRegisterRequest> {
 
-    private final UserRepository userRepository; // Renamed for consistency
+    private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final JwtUtils jwtUtils; // Needed to return a token after registration
 
     @Override
     public UserType getSupportedType() {
@@ -28,7 +26,7 @@ public class AdminITRegistrationStrategy
 
     @Override
     @Transactional
-    public AuthResponse register(AdminRegisterRequest req) {
+    public UserResponseDTO register(AdminRegisterRequest req) {
         if (userRepository.existsByEmail(req.getEmail())) {
             throw new EmailAlreadyUsedException(req.getEmail());
         }
@@ -38,15 +36,16 @@ public class AdminITRegistrationStrategy
         admin.setPassword(passwordEncoder.encode(req.getPassword()));
         admin.setNom(req.getNom());
         admin.setPrenom(req.getPrenom());
+
+        // NEW: Set the department from the request
+        admin.setDepartment(req.getDepartment());
+
         admin.setRole(Role.ADMIN_IT);
-        admin.setActive(true); // Explicitly set active status
+        admin.setActive(true);
 
         userRepository.save(admin);
 
-        // Generate token so the admin is logged in immediately
-        String token = jwtUtils.generateToken(admin);
 
-        // Use the new AuthResponse.of(user, token) format
-        return AuthResponse.of(admin, token);
+        return UserResponseDTO.fromEntity(admin);
     }
 }

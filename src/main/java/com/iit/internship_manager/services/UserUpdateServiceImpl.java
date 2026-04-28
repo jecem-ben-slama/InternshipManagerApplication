@@ -33,10 +33,13 @@ public class UserUpdateServiceImpl implements IUserUpdateService {
         // 2. Validate Permission (Self or Admin)
         validateUpdatePermission(targetUser);
 
-        // 3. Map Common Fields
+        // 3. Map Common Fields (Base Utilisateur fields)
         targetUser.setNom(dto.getNom());
         targetUser.setPrenom(dto.getPrenom());
         targetUser.setEmail(dto.getEmail());
+
+        // NEW: Centralized mapping for the department
+        targetUser.setDepartment(dto.getDepartment());
 
         // Security Rule: Role changes are restricted to IT Admins
         if (securityContext.hasRole("ADMIN_IT") && dto.getRole() != null) {
@@ -52,7 +55,6 @@ public class UserUpdateServiceImpl implements IUserUpdateService {
 
         return UserResponseDTO.fromEntity(userRepository.save(targetUser));
     }
-
     private void validateUpdatePermission(Utilisateur targetUser) {
         Long currentUserId = securityContext.getCurrentUserId();
 

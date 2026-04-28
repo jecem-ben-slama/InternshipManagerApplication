@@ -39,7 +39,8 @@ public class CandidatureController {
 
    //* Syudent applies to a subject 
    // the partnerIds is optional and can be empty, but if provided, it must not contain the student's own ID and must correspond to valid students in the system.
-    @PreAuthorize("hasRole('ETUDIANT')")
+    @PostMapping("/postuler/{sujetId}")
+   @PreAuthorize("hasRole('ETUDIANT')")
     public ResponseEntity<ApiResponse<Void>> postuler(
             @PathVariable Long sujetId,
             @RequestBody(required = false) List<Long> partnerIds) {

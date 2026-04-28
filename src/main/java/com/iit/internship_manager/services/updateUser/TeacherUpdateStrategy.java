@@ -16,6 +16,7 @@ public class TeacherUpdateStrategy implements UserUpdateStrategy {
 
     @Override
     public boolean supports(Utilisateur user, UpdateRequest dto) {
+        // Using "TEACHER" name constant matches your JsonSubTypes name
         return user instanceof Enseignant && "TEACHER".equals(dto.getUserType());
     }
 
@@ -24,17 +25,20 @@ public class TeacherUpdateStrategy implements UserUpdateStrategy {
         Enseignant enseignant = (Enseignant) user;
         TeacherUpdateDTO tDto = (TeacherUpdateDTO) dto;
 
-        // 1. Map general fields (nom, prenom, specialites, responsablePFE)
+        // 1. Delegate mapping to MapStruct (Specialites, ResponsablePFE, etc.)
+        // Note: Common fields like 'department', 'nom', etc., are handled by the parent
+        // Service.
         enseignantMapper.updateEnseignantFromDto(tDto, enseignant);
 
-        // 2. Enforce Business Rule: New Quota >= Current Workload
+        // 2. Enforce Business Rule: New Quota cannot be less than current active
+        // supervisions
         if (tDto.getQuotaAnnuel() != null) {
             int currentLoad = enseignant.getEncadrementsActuels();
             int newQuota = tDto.getQuotaAnnuel();
 
             if (newQuota < currentLoad) {
                 throw new IllegalArgumentException(
-                        String.format("Impossible de réduire le quota à %d car l'enseignant encadre déjà %d étudiants.",
+                        String.format("Impossible de réduire le quota à %d : l'enseignant encadre déjà %d étudiants.",
                                 newQuota, currentLoad));
             }
 

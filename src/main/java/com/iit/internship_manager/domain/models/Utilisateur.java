@@ -1,6 +1,7 @@
 package com.iit.internship_manager.domain.models;
 
 import com.iit.internship_manager.domain.enums.Role;
+import com.iit.internship_manager.domain.enums.DepartmentType; // Ensure this is imported
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -21,6 +22,7 @@ public abstract class Utilisateur {
     private String email;
 
     private String password;
+
     @Column(nullable = false)
     private boolean active = true;
 
@@ -29,4 +31,8 @@ public abstract class Utilisateur {
 
     private String nom;
     private String prenom;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "department", nullable = false)
+    private DepartmentType department; // Centralized field for all user types
 }

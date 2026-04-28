@@ -13,6 +13,8 @@ public class StudentUpdateStrategy implements UserUpdateStrategy {
 
     @Override
     public boolean supports(Utilisateur user, UpdateRequest dto) {
+        // Using "STUDENT".equals(dto.getUserType()) is great for Jackson discriminator
+        // support
         return user instanceof Etudiant && "STUDENT".equals(dto.getUserType());
     }
 
@@ -21,12 +23,20 @@ public class StudentUpdateStrategy implements UserUpdateStrategy {
         Etudiant etudiant = (Etudiant) user;
         StudentUpdateDTO sDto = (StudentUpdateDTO) dto;
 
+        // Update Student-specific fields only
         etudiant.setMatricule(sDto.getMatricule());
+
+        // Using Enum.valueOf is fine, but ensure the Flutter app sends valid Enum
+        // strings
         if (sDto.getFiliere() != null) {
             etudiant.setFiliere(Filiere.valueOf(sDto.getFiliere()));
         }
+
         if (sDto.getAnneeEtude() != null) {
             etudiant.setAnneeEtude(AnneeEtude.valueOf(sDto.getAnneeEtude()));
         }
+
+        // Note: Department, Nom, Prenom, and Email are already updated
+        // by the parent UserUpdateServiceImpl before this method is called.
     }
 }
