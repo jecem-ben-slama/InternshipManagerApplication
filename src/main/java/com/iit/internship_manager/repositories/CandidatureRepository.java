@@ -34,6 +34,10 @@ public interface CandidatureRepository extends JpaRepository<Candidature, Long> 
     boolean existsBySujetId(Long sujetId);
     List<Candidature> findBySujetAndStatut(Sujet sujet, DemandeStatus statut);
 
+    // This checks if the user (student OR teacher) is linked to the candidature
+    @Query("SELECT COUNT(c) > 0 FROM Candidature c WHERE c.id = :id AND " +
+                    "(c.etudiant.email = :email OR c.encadrant.email = :email)")
+    boolean existsByIdAndUserEmail(@Param("id") Long id, @Param("email") String email);
     // Used for automatic rejection logic in the current cycle
     List<Candidature> findByGroupeMembresIdInAndStatutInAndAnneeUniversitaire(
             List<Long> memberIds,

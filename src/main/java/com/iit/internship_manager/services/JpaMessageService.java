@@ -113,4 +113,10 @@ public class JpaMessageService implements IMessageService {
             throw new UnauthorizedActionException("Accès refusé : vous ne participez pas à cette discussion.");
         }
     }
+    
+    @Override
+    @Transactional
+    public void processWebSocketMessage(Long candidatureId, MessageRequest request, String userEmail) {
+       
+    }
 }

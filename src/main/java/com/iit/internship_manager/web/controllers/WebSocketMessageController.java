@@ -1,28 +1,30 @@
 package com.iit.internship_manager.web.controllers;
 
-import com.iit.internship_manager.services.interfaces.IMessageService;
 import com.iit.internship_manager.web.dtos.MessageRequest;
-import com.iit.internship_manager.web.dtos.MessageResponseDTO;
+import com.iit.internship_manager.services.interfaces.IMessageService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.messaging.handler.annotation.*;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.messaging.handler.annotation.DestinationVariable;
+import org.springframework.messaging.handler.annotation.MessageMapping;
+import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Controller;
 
-@Controller
+import java.security.Principal;
+
+@Controller // Use @Controller for WebSockets
 @RequiredArgsConstructor
 public class WebSocketMessageController {
 
     private final IMessageService messageService;
-    private final SimpMessagingTemplate messagingTemplate;
 
-    // Clients send to: /app/chat/{candidatureId}
     @MessageMapping("/chat/{candidatureId}")
-    public void sendMessage(@DestinationVariable Long candidatureId, MessageRequest request) {
-        // 1. Save message through the service
-        MessageResponseDTO response = messageService.sendMessage(candidatureId, request);
+    public void handleChatMessage(@DestinationVariable Long candidatureId,
+            @Payload MessageRequest request,
+            Principal principal) {
 
-        // 2. Broadcast to all subscribers of this candidature
-        // Clients subscribe to: /topic/messages/5
-        messagingTemplate.convertAndSend("/topic/messages/" + candidatureId, response);
+        // Security: Get the identity from the token, not the JSON body
+        String userEmail = principal.getName();
+
+        // Your service should now find the User by email and then save the message
+        messageService.processWebSocketMessage(candidatureId, request, userEmail);
     }
 }

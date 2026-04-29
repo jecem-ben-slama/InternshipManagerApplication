@@ -12,4 +12,5 @@ public interface IMessageService {
     Page<MessageResponseDTO> getAllMessagesByCandidature(Long candidatureId,int page, int size);
 
     void deleteMessage(Long messageId);
+    void processWebSocketMessage(Long candidatureId, MessageRequest request, String userEmail);
 }
