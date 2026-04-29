@@ -6,13 +6,17 @@ import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
 @Builder
+@AllArgsConstructor
+@NoArgsConstructor
 public class StudentWorkloadDTO {
     private Long affectationId;
     private String status;
     private LocalDateTime dateAffectation;
+    private String anneeId; // Added: e.g., "2025-2026"
 
     // Subject Details
     private Long sujetId;
@@ -28,6 +32,7 @@ public class StudentWorkloadDTO {
 
     @Data
     @AllArgsConstructor
+    @NoArgsConstructor
     public static class CoworkerDTO {
         private Long id;
         private String nom;

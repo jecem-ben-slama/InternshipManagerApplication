@@ -1,6 +1,8 @@
 package com.iit.internship_manager.infrastucture.config;
 
 import com.iit.internship_manager.domain.enums.*;
+import com.iit.internship_manager.domain.models.AcademicYear;
+import com.iit.internship_manager.repositories.AcademicYearRepository;
 import com.iit.internship_manager.services.registration.RegistrationStrategyFactory;
 import com.iit.internship_manager.web.dtos.registration.*;
 import lombok.RequiredArgsConstructor;
@@ -13,22 +15,39 @@ import java.util.Set;
 public class DatabaseSeeder implements CommandLineRunner {
 
     private final RegistrationStrategyFactory factory;
+    private final AcademicYearRepository academicYearRepository; // Added for Year Seeding
 
     @Override
     public void run(String... args) throws Exception {
-        // Seed users with specific departments
+        // 1. Seed Academic Years first (Crucial for system logic)
+        seedAcademicYears();
+
+        // 2. Seed users
         seedUser("admin@iit.tn", UserType.ADMIN_IT, DepartmentType.INFORMATIQUE);
         seedUser("teacher@iit.tn", UserType.TEACHER, DepartmentType.INFORMATIQUE);
         seedUser("student@iit.tn", UserType.STUDENT, DepartmentType.INFORMATIQUE);
+    }
+
+    private void seedAcademicYears() {
+        if (academicYearRepository.count() == 0) {
+            // Past Year 1
+            academicYearRepository.save(new AcademicYear("2023-2024", false));
+            // Past Year 2
+            academicYearRepository.save(new AcademicYear("2024-2025", false));
+            // Current Year (Active)
+            academicYearRepository.save(new AcademicYear("2025-2026", true));
+
+            System.out.println("✅ Successfully seeded Academic Years (Active: 2025-2026)");
+        }
     }
 
     private void seedUser(String email, UserType type, DepartmentType dept) {
         try {
             RegisterRequest request = createRequest(email, type, dept);
             factory.resolve(type).register(request);
-            System.out.println("✅ Successfully seeded " + type + " (" + dept + "): " + email);
+            System.out.println(" Successfully seeded " + type + " (" + dept + "): " + email);
         } catch (Exception e) {
-            System.out.println("❌ Skipping " + type + " (" + email + "): " + e.getMessage());
+            System.out.println(" Skipping " + type + " (" + email + "): " + e.getMessage());
         }
     }
 
@@ -45,7 +64,6 @@ public class DatabaseSeeder implements CommandLineRunner {
             TeacherRegisterRequest teacherReq = new TeacherRegisterRequest();
             teacherReq.setResponsablePFE(true);
             teacherReq.setQuotaAnnuel(5);
-            // Updated to use your likely actual Enum name
             teacherReq.setSpecialites(Set.of(SpecialiteType.DOT_NET));
             req = teacherReq;
         } else if (type == UserType.ADMIN_IT) {
@@ -64,6 +82,6 @@ public class DatabaseSeeder implements CommandLineRunner {
         req.setNom("Test");
         req.setPrenom(type.name());
         req.setUserType(type);
-        req.setDepartment(dept); // Set the mandatory department
+        req.setDepartment(dept);
     }
 }

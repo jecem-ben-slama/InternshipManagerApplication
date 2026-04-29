@@ -23,16 +23,18 @@ public class SubjectServiceImpl implements ISubjectService {
     private final SubjectRepository subjectRepository;
     private final UserRepository userRepository;
     private final CandidatureRepository candidatureRepository;
+    private final AcademicYearRepository academicYearRepository; // Added for year logic
     private final AffectationRepository affectationRepository;
     private final IGroupeService groupeService;
     private final ISecurityContext securityContext;
+    private final CurrentYearProvider currentYearProvider; // Added for Default Year Logic
 
     @Override
     @Transactional(readOnly = true)
     public Page<SujetResponseDTO> findAll(Pageable pageable) {
-        // Uses JOIN FETCH internally in repository to avoid N+1
-        return subjectRepository.findAll(pageable)
-                .map(SujetResponseDTO::fromEntity);
+        // You might want to filter this by active year too, or keep it open for Admin
+        // archives
+        return subjectRepository.findAll(pageable).map(SujetResponseDTO::fromEntity);
     }
 
     @Override
@@ -45,8 +47,32 @@ public class SubjectServiceImpl implements ISubjectService {
 
     @Override
     @Transactional(readOnly = true)
+    public Page<SujetResponseDTO> getSubjectsByYear(String yearId, Pageable pageable) {
+        // 1. Find the specific academic year requested
+        AcademicYear year = academicYearRepository.findById(yearId)
+                .orElseThrow(() -> new ResourceNotFoundException("Année universitaire " + yearId + " introuvable",null));
+
+        // 2. Fetch subjects for that specific year
+        // Note: We use a repository method that takes the year object as a parameter
+        return subjectRepository.findByAnneeUniversitaire(year, pageable)
+                .map(SujetResponseDTO::fromEntity);
+    }
+    @Override
+    @Transactional(readOnly = true)
     public Page<SujetResponseDTO> getSubjectsByStatus(SujetStatus status, Pageable pageable) {
-        return subjectRepository.findByStatut(status, pageable)
+        Utilisateur currentUser = securityContext.getCurrentUser();
+        AcademicYear currentYear = currentYearProvider.getCurrent(); // Get active year
+
+        if (currentUser instanceof Etudiant student) {
+            // Updated: Only fetch available subjects for the student's department AND the
+            // current year
+            return subjectRepository.findByStatutAndDepartmentAndAnneeUniversitaire(
+                    status, student.getDepartment(), currentYear, pageable)
+                    .map(SujetResponseDTO::fromEntity);
+        }
+
+        // Updated: General fetch filtered by year
+        return subjectRepository.findByStatutAndAnneeUniversitaire(status, currentYear, pageable)
                 .map(SujetResponseDTO::fromEntity);
     }
 
@@ -56,19 +82,15 @@ public class SubjectServiceImpl implements ISubjectService {
         Sujet sujet = subjectRepository.findByIdWithDetails(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Sujet", id));
 
-        // 1. Status Guard: Lock if already taken
         if (sujet.getStatut() == SujetStatus.TAKEN) {
             throw new UnauthorizedActionException("Ce sujet est déjà assigné et ne peut plus être modifié.");
         }
 
-        // 2. Ownership Check (Null-safe)
-        String currentUserEmail = securityContext.getCurrentUserEmail();
-        boolean isTeacherOwner = sujet.getEnseignant() != null
-                && sujet.getEnseignant().getEmail().equals(currentUserEmail);
-        boolean isStudentOwner = sujet.getProposant() != null
-                && sujet.getProposant().getEmail().equals(currentUserEmail);
+        String email = securityContext.getCurrentUserEmail();
+        boolean isOwner = (sujet.getEnseignant() != null && sujet.getEnseignant().getEmail().equals(email)) ||
+                (sujet.getProposant() != null && sujet.getProposant().getEmail().equals(email));
 
-        if (!isTeacherOwner && !isStudentOwner && !securityContext.hasRole("ADMIN_IT")) {
+        if (!isOwner && !securityContext.hasRole("ADMIN_IT")) {
             throw new UnauthorizedActionException("Vous n'êtes pas autorisé à modifier ce sujet.");
         }
 
@@ -78,18 +100,32 @@ public class SubjectServiceImpl implements ISubjectService {
 
     @Override
     @Transactional
+    public SujetResponseDTO updateSujetStatus(Long id, SujetStatus status) {
+        Utilisateur user = securityContext.getCurrentUser();
+
+        if (!(user instanceof Enseignant e) || !e.isResponsablePFE()) {
+            throw new UnauthorizedActionException("Action réservée au Responsable PFE.");
+        }
+
+        Sujet sujet = subjectRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Sujet", id));
+
+        sujet.setStatut(status);
+        return SujetResponseDTO.fromEntity(subjectRepository.save(sujet));
+    }
+
+    @Override
+    @Transactional
     public void deleteSujet(Long id) {
         Sujet sujet = subjectRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Sujet", id));
 
-        // 1. Status Guard
         if (sujet.getStatut() == SujetStatus.TAKEN) {
             throw new UnauthorizedActionException("Impossible de supprimer un sujet déjà assigné.");
         }
 
-        // 2. Relationship Guard
         if (candidatureRepository.existsBySujetId(id)) {
-            throw new UnauthorizedActionException("Ce sujet a des candidatures actives et ne peut être supprimé.");
+            throw new UnauthorizedActionException("Ce sujet a des candidatures actives.");
         }
 
         subjectRepository.delete(sujet);
@@ -108,6 +144,9 @@ public class SubjectServiceImpl implements ISubjectService {
         sujet.setEnseignant(teacher);
         sujet.setStatut(SujetStatus.AVAILABLE);
 
+        // DEFAULT YEAR SETTING
+        sujet.setAnneeUniversitaire(currentYearProvider.getCurrent());
+
         return SujetResponseDTO.fromEntity(subjectRepository.save(sujet));
     }
 
@@ -119,7 +158,6 @@ public class SubjectServiceImpl implements ISubjectService {
             throw new UnauthorizedActionException("Seuls les étudiants peuvent proposer des sujets.");
         }
 
-        // 1. Availability verification for ALL group members
         validateMembersAvailability(student, dto.getPartnerIds());
 
         Enseignant teacher = userRepository.findEnseignantById(teacherId)
@@ -127,16 +165,16 @@ public class SubjectServiceImpl implements ISubjectService {
 
         Groupe group = groupeService.getOrCreateGroup(student, dto.getPartnerIds());
 
-        // 2. Create Subject
         Sujet sujet = new Sujet();
         mapCommonFields(sujet, dto);
         sujet.setEnseignant(teacher);
         sujet.setProposant(student);
         sujet.setStatut(SujetStatus.PROPOSED_BY_STUDENT);
 
-        Sujet savedSujet = subjectRepository.save(sujet);
+        // DEFAULT YEAR SETTING
+        sujet.setAnneeUniversitaire(currentYearProvider.getCurrent());
 
-        // 3. Create Automatic Candidature
+        Sujet savedSujet = subjectRepository.save(sujet);
         createAutomaticCandidature(group, savedSujet);
 
         return SujetResponseDTO.fromEntity(savedSujet);
@@ -145,23 +183,11 @@ public class SubjectServiceImpl implements ISubjectService {
     @Override
     @Transactional(readOnly = true)
     public Page<SujetResponseDTO> getSubjectsByCurrentTeacher(Pageable pageable) {
+        // Option: You can filter this by active year so the teacher only sees current
+        // topics
+        // Or keep it as is if they should see their entire history.
         return subjectRepository.findByEnseignantId(securityContext.getCurrentUserId(), pageable)
                 .map(SujetResponseDTO::fromEntity);
-    }
-
-    @Override
-    @Transactional
-    public SujetResponseDTO updateSujetStatus(Long id, SujetStatus status) {
-        Utilisateur user = securityContext.getCurrentUser();
-        if (!(user instanceof Enseignant e) || !e.isResponsablePFE()) {
-            throw new UnauthorizedActionException("Action réservée au Responsable PFE.");
-        }
-
-        Sujet sujet = subjectRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Sujet", id));
-
-        sujet.setStatut(status);
-        return SujetResponseDTO.fromEntity(subjectRepository.save(sujet));
     }
 
     // --- PRIVATE HELPERS ---
@@ -172,22 +198,11 @@ public class SubjectServiceImpl implements ISubjectService {
         if (partnerIds != null)
             allMemberIds.addAll(partnerIds);
 
-        // 1. Check official Affectations (Ground Truth)
-        boolean anyMemberAffected = affectationRepository.existsByGroupeMembresIdIn(allMemberIds);
-        if (anyMemberAffected) {
-            throw new UnauthorizedActionException("Un ou plusieurs membres du groupe sont déjà affectés.");
-        }
-
-        // 2. Check for PENDING/ACCEPTED candidates to prevent "ghost" double-booking
-        for (Long studentId : allMemberIds) {
-            boolean hasActiveApplication = candidatureRepository.findByGroupeMembresId(studentId).stream()
-                    .anyMatch(c -> c.getStatut() == DemandeStatus.VALIDATED_BY_RESPONSABLE
-                            || c.getStatut() == DemandeStatus.ACCEPTED_BY_TEACHER);
-
-            if (hasActiveApplication) {
-                throw new UnauthorizedActionException(
-                        "L'étudiant ID " + studentId + " a déjà un sujet en cours de validation.");
-            }
+        // Updated: Students are available if they aren't assigned for the CURRENT year
+        AcademicYear currentYear = currentYearProvider.getCurrent();
+        if (affectationRepository.existsByGroupeMembresIdInAndAnneeUniversitaire(allMemberIds, currentYear)) {
+            throw new UnauthorizedActionException(
+                    "Un ou plusieurs membres du groupe sont déjà affectés pour cette année.");
         }
     }
 
@@ -196,6 +211,10 @@ public class SubjectServiceImpl implements ISubjectService {
         candidature.setGroupe(group);
         candidature.setSujet(sujet);
         candidature.setStatut(DemandeStatus.PENDING);
+
+        // DEFAULT YEAR SETTING
+        candidature.setAnneeUniversitaire(currentYearProvider.getCurrent());
+
         candidatureRepository.save(candidature);
     }
 

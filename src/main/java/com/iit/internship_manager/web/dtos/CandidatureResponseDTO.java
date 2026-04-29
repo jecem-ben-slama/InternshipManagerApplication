@@ -16,13 +16,14 @@ public class CandidatureResponseDTO {
 
     private Long id;
     private DemandeStatus statut;
+    private String anneeId; // Added for the Year System
 
     // Subject Details
     private Long sujetId;
     private String sujetTitre;
     private String sujetDescription;
 
-    // Group Details (New)
+    // Group Details
     private Long groupeId;
     private String groupeNom;
     private List<MembreDTO> membres;
@@ -52,6 +53,11 @@ public class CandidatureResponseDTO {
                 .id(entity.getId())
                 .statut(entity.getStatut());
 
+        // Mapping Year Info
+        if (entity.getAnneeUniversitaire() != null) {
+            builder.anneeId(entity.getAnneeUniversitaire().getId());
+        }
+
         // Mapping Sujet & Teacher info
         if (entity.getSujet() != null) {
             builder.sujetId(entity.getSujet().getId())
@@ -66,7 +72,7 @@ public class CandidatureResponseDTO {
             }
         }
 
-        // Mapping Group Info (Replaced Etudiant mapping)
+        // Mapping Group Info
         if (entity.getGroupe() != null) {
             builder.groupeId(entity.getGroupe().getId())
                     .groupeNom(entity.getGroupe().getNom());

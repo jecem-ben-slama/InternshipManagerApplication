@@ -13,12 +13,23 @@ public class CandidatureMessage {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "annee_universitaire_id", nullable = false)
+    private AcademicYear anneeUniversitaire;
+
+    // --- FIX IS HERE ---
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "candidature_id")
     private Candidature candidature;
+    // -------------------
+
     @ManyToOne(fetch = FetchType.LAZY)
     private Utilisateur sender;
+
     @Column(columnDefinition = "TEXT")
     private String content;
+
     private String fileLink;
     private LocalDateTime sentAt = LocalDateTime.now();
 }

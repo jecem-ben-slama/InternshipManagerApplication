@@ -1,6 +1,7 @@
 package com.iit.internship_manager.repositories;
 
 import com.iit.internship_manager.domain.enums.DemandeStatus;
+import com.iit.internship_manager.domain.models.AcademicYear;
 import com.iit.internship_manager.domain.models.Candidature;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -19,27 +20,41 @@ public interface CandidatureRepository extends JpaRepository<Candidature, Long> 
     @Query("SELECT COUNT(c) > 0 FROM Candidature c JOIN c.groupe.membres m WHERE m.id = :studentId AND c.sujet.id = :sujetId")
     boolean existsByStudentInGroupAndSujetId(@Param("studentId") Long studentId, @Param("sujetId") Long sujetId);
 
-    // --- STUDENT VIEW (Group-Aware) ---
-    Page<Candidature> findByGroupeMembresId(Long studentId, Pageable pageable);
+    // --- STUDENT VIEW (Group-Aware & Year-Aware) ---
+    Page<Candidature> findByGroupeMembresIdAndAnneeUniversitaire(Long studentId, AcademicYear year, Pageable pageable);
 
-    Page<Candidature> findByGroupeMembresIdAndStatut(Long studentId, DemandeStatus statut, Pageable pageable);
+    Page<Candidature> findByGroupeMembresIdAndStatutAndAnneeUniversitaire(Long studentId, DemandeStatus statut,
+            AcademicYear year, Pageable pageable);
 
-    List<Candidature> findByGroupeMembresId(Long studentId);
+    List<Candidature> findByGroupeMembresIdAndAnneeUniversitaire(Long studentId, AcademicYear year);
 
     boolean existsBySujetId(Long sujetId);
-    List<Candidature> findByGroupeMembresIdInAndStatutIn(
+
+    // Used for automatic rejection logic in the current cycle
+    List<Candidature> findByGroupeMembresIdInAndStatutInAndAnneeUniversitaire(
             List<Long> memberIds,
-            List<DemandeStatus> statuts);
-    // --- TEACHER VIEW ---
-    Page<Candidature> findBySujetEnseignantId(Long teacherId, Pageable pageable);
+            List<DemandeStatus> statuts,
+            AcademicYear year);
 
-    Page<Candidature> findBySujetEnseignantIdAndStatut(Long teacherId, DemandeStatus statut, Pageable pageable);
+    // --- TEACHER VIEW (Year-Aware) ---
+    Page<Candidature> findBySujetEnseignantIdAndAnneeUniversitaire(Long teacherId, AcademicYear year,
+            Pageable pageable);
 
-    // Find other candidatures for the same subject to reject them
+    Page<Candidature> findBySujetEnseignantIdAndStatutAndAnneeUniversitaire(Long teacherId, DemandeStatus statut,
+            AcademicYear year, Pageable pageable);
+@Query("SELECT c FROM Candidature c WHERE c.anneeUniversitaire = :year " +
+           "AND (:status IS NULL OR c.statut = :status) " +
+           "AND c.sujet.enseignant.id = :teacherId")
+    Page<Candidature> findByYearAndTeacher(@Param("year") AcademicYear year, 
+                                           @Param("status") DemandeStatus status, 
+                                           @Param("teacherId") Long teacherId, 
+                                           Pageable pageable);
+
+    // Find other candidatures for the same subject to reject them (Year is implicit
+    // via sujetId, but good for safety)
     List<Candidature> findBySujetIdAndIdNot(Long sujetId, Long acceptedCandidatureId);
-    
- 
+
     Optional<Candidature> findByGroupeIdAndStatut(Long groupeId, DemandeStatus statut);
-    
+
     boolean existsByGroupeIdAndSujetId(Long groupeId, Long sujetId);
 }

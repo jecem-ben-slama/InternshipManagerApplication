@@ -26,9 +26,12 @@ public class Affectation {
 
     private LocalDateTime dateAffectation = LocalDateTime.now();
 
-    @OneToOne
+    @ManyToOne
     @JoinColumn(name = "candidature_id")
     private Candidature originalCandidature;
 
     private String status = "IN_PROGRESS";
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "annee_universitaire_id", nullable = false)
+    private AcademicYear anneeUniversitaire;
 }

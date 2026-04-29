@@ -22,6 +22,7 @@ public interface ISubjectService {
     SujetResponseDTO updateSujet(Long id, SujetRequest dto);
 
     SujetResponseDTO updateSujetStatus(Long id, SujetStatus status);
+    Page<SujetResponseDTO> getSubjectsByYear(String yearId, Pageable pageable);
 
     void deleteSujet(Long id);
 }

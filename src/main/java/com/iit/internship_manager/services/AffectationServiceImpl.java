@@ -1,10 +1,11 @@
 package com.iit.internship_manager.services;
 
 import com.iit.internship_manager.domain.models.*;
+import com.iit.internship_manager.domain.enums.SujetStatus;
 import com.iit.internship_manager.domain.exceptions.ResourceNotFoundException;
 import com.iit.internship_manager.domain.exceptions.UnauthorizedActionException;
+import com.iit.internship_manager.repositories.AcademicYearRepository;
 import com.iit.internship_manager.repositories.AffectationRepository;
-import com.iit.internship_manager.repositories.EnseignantRepository;
 import com.iit.internship_manager.repositories.UserRepository;
 import com.iit.internship_manager.services.interfaces.IAffectationService;
 import com.iit.internship_manager.services.interfaces.ISecurityContext;
@@ -14,7 +15,6 @@ import com.iit.internship_manager.web.dtos.TeacherWorkloadDTO;
 
 import lombok.RequiredArgsConstructor;
 
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -22,39 +22,37 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
-
 @Service
 @RequiredArgsConstructor
 public class AffectationServiceImpl implements IAffectationService {
 
     private final AffectationRepository affectationRepository;
     private final UserRepository userRepository;
-    private final EnseignantRepository enseignantRepository;
     private final ISecurityContext securityContext;
+    private final CurrentYearProvider currentYearProvider; // For year logic
+    private final AcademicYearRepository academicYearRepository; // For year logic
 
     @Override
     @Transactional(readOnly = true)
     public Page<AffectationResponseDTO> getMyAffectations(Pageable pageable) {
         Utilisateur currentUser = securityContext.getCurrentUser();
+        AcademicYear currentYear = currentYearProvider.getCurrent();
 
-        if (securityContext.isResponsablePFE()) {
-            return affectationRepository.findAll(pageable)
+        if (securityContext.isResponsablePFE() && currentUser instanceof Enseignant resp) {
+            return affectationRepository
+                    .findByDepartmentAndAnneeUniversitaire(resp.getDepartment(), currentYear, pageable)
                     .map(AffectationResponseDTO::fromEntity);
         }
 
         if (currentUser instanceof Enseignant teacher) {
-            return affectationRepository.findByEncadrantId(teacher.getId(), pageable)
+            return affectationRepository.findByEncadrantIdAndAnneeUniversitaire(teacher.getId(), currentYear, pageable)
                     .map(AffectationResponseDTO::fromEntity);
         }
 
         if (currentUser instanceof Etudiant student) {
-            List<Affectation> affectations = affectationRepository.findByStudentId(student.getId());
-
-            if (affectations.size() > 1) {
-                throw new DataIntegrityViolationException(
-                        "Conflict: Multiple project assignments detected for student ID: " + student.getId());
-            }
-
+            // Students should only have ONE affectation per academic year
+            List<Affectation> affectations = affectationRepository
+                    .findByGroupeMembresIdAndAnneeUniversitaire(student.getId(), currentYear);
             return new PageImpl<>(
                     affectations.stream().map(AffectationResponseDTO::fromEntity).toList(),
                     pageable,
@@ -66,23 +64,42 @@ public class AffectationServiceImpl implements IAffectationService {
 
     @Override
     @Transactional(readOnly = true)
+    public Page<AffectationResponseDTO> getAffectationsByYear(String yearId, Pageable pageable) {
+        // 1. Fetch the specific academic year requested
+        AcademicYear year = academicYearRepository.findById(yearId)
+                .orElseThrow(() -> new ResourceNotFoundException("Année universitaire"+ yearId +" introuvable", null));
+
+        // 2. Identify the current user and their department
+        Utilisateur currentUser = securityContext.getCurrentUser();
+        if (!(currentUser instanceof Enseignant teacher)) {
+            throw new UnauthorizedActionException("Accès restreint aux enseignants pour consulter les archives.");
+        }
+
+        // 3. Query the repository for affectations in that year and department
+        return affectationRepository.findByDepartmentAndAnneeUniversitaire(
+                teacher.getDepartment(),
+                year,
+                pageable).map(AffectationResponseDTO::fromEntity);
+    }
+    @Override
+    @Transactional(readOnly = true)
     public Page<StudentWorkloadDTO> getWorkloadView(Pageable pageable) {
         Utilisateur currentUser = securityContext.getCurrentUser();
+        AcademicYear currentYear = currentYearProvider.getCurrent();
         Page<Affectation> affectationsPage;
 
-        if (securityContext.isResponsablePFE() && currentUser instanceof Enseignant teacher) {
-            affectationsPage = affectationRepository.findByEncadrantId(teacher.getId(), pageable);
+        if (securityContext.isResponsablePFE() && currentUser instanceof Enseignant resp) {
+            affectationsPage = affectationRepository.findByDepartmentAndAnneeUniversitaire(resp.getDepartment(),
+                    currentYear, pageable);
+        } else if (currentUser instanceof Enseignant teacher) {
+            affectationsPage = affectationRepository.findByEncadrantIdAndAnneeUniversitaire(teacher.getId(),
+                    currentYear, pageable);
         } else if (currentUser instanceof Etudiant student) {
-            // Students only have one (usually), but we return it as a Page of 1
-            List<Affectation> list = affectationRepository.findByStudentId(student.getId());
-
-            if (list.stream().filter(a -> "IN_PROGRESS".equals(a.getStatus())).count() > 1) {
-                throw new DataIntegrityViolationException("Conflict: Multiple active projects detected.");
-            }
-
+            List<Affectation> list = affectationRepository.findByGroupeMembresIdAndAnneeUniversitaire(student.getId(),
+                    currentYear);
             affectationsPage = new PageImpl<>(list, pageable, list.size());
         } else {
-            throw new UnauthorizedActionException("Role not authorized for workload view.");
+            throw new UnauthorizedActionException("Accès non autorisé.");
         }
 
         return affectationsPage.map(this::mapToWorkloadDTO);
@@ -91,36 +108,97 @@ public class AffectationServiceImpl implements IAffectationService {
     @Override
     @Transactional(readOnly = true)
     public Page<Etudiant> getUnassignedStudents(Pageable pageable) {
-        if (!securityContext.isResponsablePFE()) {
+        Utilisateur currentUser = securityContext.getCurrentUser();
+        if (!securityContext.isResponsablePFE() || !(currentUser instanceof Enseignant resp)) {
             throw new UnauthorizedActionException("Accès réservé au responsable.");
         }
-        return userRepository.findStudentsWithoutAffectation(pageable);
+
+        // This query must filter students who DON'T have an affectation in the CURRENT
+        // year
+        return userRepository.findStudentsWithoutAffectationByDepartmentAndYear(resp.getDepartment(),
+                currentYearProvider.getCurrent(), pageable);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<TeacherWorkloadDTO> getTeachersWorkload(Pageable pageable) {
-        if (!securityContext.isResponsablePFE()) {
+        Utilisateur currentUser = securityContext.getCurrentUser();
+        AcademicYear currentYear = currentYearProvider.getCurrent();
+
+        if (!securityContext.isResponsablePFE() || !(currentUser instanceof Enseignant resp)) {
             throw new UnauthorizedActionException("Accès réservé au responsable.");
         }
 
-        // We use the repository to get a page of Enseignant directly
-        return userRepository.findAllEnseignants(pageable)
+        return userRepository.findAllEnseignantsByDepartment(resp.getDepartment(), pageable)
                 .map(e -> {
+                    // DYNAMIC COUNT: Instead of using e.getEncadrementsActuels(), we count actual
+                    // DB records for this year
+                    long currentCount = affectationRepository.countByEncadrantAndAnneeUniversitaire(e, currentYear);
+
                     double percentage = (e.getQuotaAnnuel() > 0)
-                            ? ((double) e.getEncadrementsActuels() / e.getQuotaAnnuel()) * 100
+                            ? ((double) currentCount / e.getQuotaAnnuel()) * 100
                             : 0;
 
-                    return new TeacherWorkloadDTO(
-                            e.getId(),
-                            e.getNom() + " " + e.getPrenom(),
-                            e.getEncadrementsActuels(),
-                            e.getQuotaAnnuel(),
-                            percentage);
+                    return TeacherWorkloadDTO.builder()
+                            .teacherId(e.getId())
+                            .teacherName(e.getNom() + " " + e.getPrenom())
+                            .anneeId(currentYear.getId()) // Matches the new field
+                            .currentEncadrements((int) currentCount)
+                            .maxQuota(e.getQuotaAnnuel())
+                            .occupationPercentage(percentage)
+                            .build();
                 });
     }
 
-    // --- Helper & State Change Methods ---
+    @Override
+    @Transactional
+    public void abortAffectation(Long affectationId) {
+        Affectation affectation = affectationRepository.findById(affectationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Affectation introuvable", affectationId));
+
+        checkResponsableAccess(affectation);
+
+        // Reset subject status
+        Sujet sujet = affectation.getSujet();
+        sujet.setStatut(SujetStatus.AVAILABLE);
+
+        affectationRepository.delete(affectation);
+        // Note: We don't manually decrement teacher.encadrementsActuels anymore because
+        // count is dynamic
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long getTotalAssignmentsCount() {
+        Utilisateur currentUser = securityContext.getCurrentUser();
+        AcademicYear currentYear = currentYearProvider.getCurrent();
+
+        if (securityContext.isResponsablePFE() && currentUser instanceof Enseignant resp) {
+            return affectationRepository.countByDepartmentAndAnneeUniversitaire(resp.getDepartment(), currentYear);
+        }
+        return affectationRepository.countByAnneeUniversitaire(currentYear);
+    }
+
+    // --- Helpers stay similar but verify department logic ---
+    // completeProject remains the same as it updates status by ID
+    @Override
+    @Transactional
+    public void completeProject(Long id) {
+        Affectation affectation = affectationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Affectation not found", id));
+        checkResponsableAccess(affectation);
+        affectation.setStatus("COMPLETED");
+        affectationRepository.save(affectation);
+    }
+
+    private void checkResponsableAccess(Affectation affectation) {
+        Utilisateur currentUser = securityContext.getCurrentUser();
+        if (securityContext.isResponsablePFE() && currentUser instanceof Enseignant resp) {
+            if (!affectation.getEncadrant().getDepartment().equals(resp.getDepartment())) {
+                throw new UnauthorizedActionException("Vous ne pouvez agir que sur votre département.");
+            }
+        }
+    }
 
     private StudentWorkloadDTO mapToWorkloadDTO(Affectation affectation) {
         List<StudentWorkloadDTO.CoworkerDTO> members = affectation.getGroupe().getMembres().stream()
@@ -138,31 +216,5 @@ public class AffectationServiceImpl implements IAffectationService {
                 .encadrantEmail(affectation.getEncadrant().getEmail())
                 .coworkers(members)
                 .build();
-    }
-
-    @Transactional
-    public void completeProject(Long id) {
-        Affectation affectation = affectationRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Affectation not found", id));
-        affectation.setStatus("COMPLETED");
-        affectationRepository.save(affectation);
-    }
-
-    @Transactional
-    public void abortAffectation(Long affectationId) {
-        Affectation affectation = affectationRepository.findById(affectationId)
-                .orElseThrow(() -> new ResourceNotFoundException("Affectation introuvable", affectationId));
-
-        Enseignant teacher = affectation.getEncadrant();
-        if (teacher.getEncadrementsActuels() > 0) {
-            teacher.setEncadrementsActuels(teacher.getEncadrementsActuels() - 1);
-            enseignantRepository.save(teacher);
-        }
-        affectationRepository.delete(affectation);
-    }
-
-    @Override
-    public long getTotalAssignmentsCount() {
-        return affectationRepository.count();
     }
 }

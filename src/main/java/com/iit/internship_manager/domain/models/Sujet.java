@@ -39,7 +39,10 @@ public class Sujet {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "proposant_id")
     private Etudiant proposant;
-
+    // Example for Sujet, but applies to Groupe, Candidature, and Affectation
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "annee_universitaire_id", nullable = false)
+    private AcademicYear anneeUniversitaire;
     @ElementCollection
     @CollectionTable(name = "sujet_technologies", joinColumns = @JoinColumn(name = "sujet_id"))
     @Column(name = "technologie")

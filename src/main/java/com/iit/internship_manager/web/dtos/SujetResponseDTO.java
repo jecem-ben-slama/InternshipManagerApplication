@@ -13,8 +13,7 @@ public class SujetResponseDTO {
     private String description;
     private String statut;
     private List<String> technologies;
-    // Changed from ProposantSummaryDTO to UserResponseDTO to get full polymorphic
-    // data
+    private String anneeId; // Added for the Year System
     private UserResponseDTO proposant;
 
     /**
@@ -29,12 +28,15 @@ public class SujetResponseDTO {
         dto.setStatut(sujet.getStatut().name());
         dto.setTechnologies(sujet.getTechnologies());
 
+        // Map the Year ID from the ManyToOne relationship
+        if (sujet.getAnneeUniversitaire() != null) {
+            dto.setAnneeId(sujet.getAnneeUniversitaire().getId());
+        }
+
         // Logic to find the actual creator/proposant
         if (sujet.getEnseignant() != null) {
-            // If a teacher owns/proposed it
             dto.setProposant(UserResponseDTO.fromEntity(sujet.getEnseignant()));
         } else if (sujet.getProposant() != null) {
-            // If a student suggested it
             dto.setProposant(UserResponseDTO.fromEntity(sujet.getProposant()));
         }
 

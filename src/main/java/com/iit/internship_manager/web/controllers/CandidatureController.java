@@ -1,7 +1,7 @@
 package com.iit.internship_manager.web.controllers;
 
 import com.iit.internship_manager.domain.enums.DemandeStatus;
-import com.iit.internship_manager.services.interfaces.ICandidatureService; // Using Interface
+import com.iit.internship_manager.services.interfaces.ICandidatureService;
 import com.iit.internship_manager.web.dtos.ApiResponse;
 import com.iit.internship_manager.web.dtos.CandidatureResponseDTO;
 import com.iit.internship_manager.web.dtos.MessageRequest;
@@ -22,10 +22,11 @@ import java.util.List;
 @Validated
 public class CandidatureController {
 
-    private final ICandidatureService candidatureService; // Updated to Interface
+    private final ICandidatureService candidatureService;
 
-    //* Get candidatures of the currently authenticated user, with optional filtering by status.
-    // Accessible to both students and teachers, but shows data based on role (e.g., students see only their own candidatures, teachers see candidatures for their subjects).
+    /**
+     * Get candidatures for the CURRENT academic year.
+     */
     @GetMapping("/me")
     @PreAuthorize("hasAnyRole('ETUDIANT', 'ENSEIGNANT')")
     public ResponseEntity<ApiResponse<Page<CandidatureResponseDTO>>> getMyCandidatures(
@@ -34,25 +35,37 @@ public class CandidatureController {
             @RequestParam(defaultValue = "10") int size) {
 
         Page<CandidatureResponseDTO> list = candidatureService.getPagedCandidatures(status, page, size);
-        return ResponseEntity.ok(ApiResponse.success("Liste des candidatures récupérée", list));
+        return ResponseEntity.ok(ApiResponse.success("Liste des candidatures de l'année en cours récupérée", list));
     }
 
-   //* Syudent applies to a subject 
-   // the partnerIds is optional and can be empty, but if provided, it must not contain the student's own ID and must correspond to valid students in the system.
+    /**
+     * ARCHIVE VIEW: Get candidatures for a specific academic year.
+     * Useful for teachers to check previous student applications/performance.
+     */
+    @GetMapping("/archive/{yearId}")
+    @PreAuthorize("hasAnyRole('ENSEIGNANT', 'ADMIN_IT')")
+    public ResponseEntity<ApiResponse<Page<CandidatureResponseDTO>>> getCandidaturesByYear(
+            @PathVariable String yearId,
+            @RequestParam(required = false) DemandeStatus status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        Page<CandidatureResponseDTO> list = candidatureService.getCandidaturesByYear(yearId, status, page, size);
+        return ResponseEntity.ok(ApiResponse.success("Archives des candidatures récupérées", list));
+    }
+
     @PostMapping("/postuler/{sujetId}")
-   @PreAuthorize("hasRole('ETUDIANT')")
+    @PreAuthorize("hasRole('ETUDIANT')")
     public ResponseEntity<ApiResponse<Void>> postuler(
             @PathVariable Long sujetId,
             @RequestBody(required = false) List<Long> partnerIds) {
 
         candidatureService.postuler(sujetId, partnerIds);
         return new ResponseEntity<>(
-                ApiResponse.success("Candidature soumise avec succès", null),
+                ApiResponse.success("Candidature soumise pour l'année en cours", null),
                 HttpStatus.CREATED);
     }
 
-  //* Accept Application
-  // When a teacher accepts an application, the system should automatically create an "Affectation" linking the student group to the subject.
     @PatchMapping("/{id}/accepter")
     @PreAuthorize("hasRole('ENSEIGNANT')")
     public ResponseEntity<ApiResponse<Void>> accepter(@PathVariable Long id) {
@@ -60,9 +73,6 @@ public class CandidatureController {
         return ResponseEntity.ok(ApiResponse.success("Candidature acceptée et affectation créée", null));
     }
 
-    /**
-     * PATCH /api/candidatures/{id}/refuser
-     */
     @PatchMapping("/{id}/refuser")
     @PreAuthorize("hasRole('ENSEIGNANT')")
     public ResponseEntity<ApiResponse<Void>> refuser(@PathVariable Long id) {
@@ -70,10 +80,6 @@ public class CandidatureController {
         return ResponseEntity.ok(ApiResponse.success("Candidature refusée", null));
     }
 
-    /**
-     * PATCH /api/candidatures/{id}/clarifier
-     * Initiates a message thread with the group for clarifications.
-     */
     @PatchMapping("/{id}/clarifier")
     @PreAuthorize("hasRole('ENSEIGNANT')")
     public ResponseEntity<ApiResponse<Void>> clarifier(
@@ -84,10 +90,6 @@ public class CandidatureController {
         return ResponseEntity.ok(ApiResponse.success("Demande de clarification envoyée", null));
     }
 
-    /**
-     * DELETE /api/candidatures/{id}
-     * Allows a student to withdraw their request before it is processed.
-     */
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ETUDIANT')")
     public ResponseEntity<ApiResponse<Void>> annuler(@PathVariable Long id) {

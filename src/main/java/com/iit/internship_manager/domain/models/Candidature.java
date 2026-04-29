@@ -21,7 +21,10 @@ public class Candidature {
 
     @ManyToOne(fetch = FetchType.LAZY)
     private Sujet sujet;
-
+    // Example for Sujet, but applies to Groupe, Candidature, and Affectation
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "annee_universitaire_id", nullable = false)
+    private AcademicYear anneeUniversitaire;
     @Enumerated(EnumType.STRING)
     private DemandeStatus statut = DemandeStatus.PENDING;
 

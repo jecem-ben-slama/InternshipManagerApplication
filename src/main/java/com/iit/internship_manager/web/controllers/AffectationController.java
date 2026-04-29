@@ -17,22 +17,40 @@ public class AffectationController {
 
         private final IAffectationService affectationService;
 
-        /**
-         * Standardized method to create Pageable from request params
-         */
         private Pageable createPageable(int page, int size) {
                 return PageRequest.of(page, size);
         }
 
+        /**
+         * Get active affectations for the CURRENT academic year.
+         */
         @GetMapping
         public ResponseEntity<ApiResponse<Page<AffectationResponseDTO>>> getMyAffectations(
                         @RequestParam(defaultValue = "0") int page,
                         @RequestParam(defaultValue = "10") int size) {
 
                 Page<AffectationResponseDTO> result = affectationService.getMyAffectations(createPageable(page, size));
-                return ResponseEntity.ok(ApiResponse.success("Affectations récupérées avec succès.", result));
+                return ResponseEntity.ok(ApiResponse.success("Affectations de l'année en cours récupérées.", result));
         }
 
+        /**
+         * ARCHIVE VIEW: Get affectations for a specific year.
+         */
+        @GetMapping("/archive/{yearId}")
+        @PreAuthorize("hasAnyRole('ENSEIGNANT', 'ADMIN_IT')")
+        public ResponseEntity<ApiResponse<Page<AffectationResponseDTO>>> getArchiveAffectations(
+                        @PathVariable String yearId,
+                        @RequestParam(defaultValue = "0") int page,
+                        @RequestParam(defaultValue = "10") int size) {
+
+                Page<AffectationResponseDTO> result = affectationService.getAffectationsByYear(yearId,
+                                createPageable(page, size));
+                return ResponseEntity.ok(ApiResponse.success("Archives des affectations récupérées.", result));
+        }
+
+        /**
+         * Students in the department without an assignment for the CURRENT year.
+         */
         @GetMapping("/unassigned")
         @PreAuthorize("hasRole('ENSEIGNANT')")
         public ResponseEntity<ApiResponse<Page<EtudiantResponseDTO>>> getUnassignedStudents(
@@ -42,9 +60,13 @@ public class AffectationController {
                 Page<EtudiantResponseDTO> result = affectationService.getUnassignedStudents(createPageable(page, size))
                                 .map(EtudiantResponseDTO::fromEntity);
 
-                return ResponseEntity.ok(ApiResponse.success("Étudiants sans affectation récupérés.", result));
+                return ResponseEntity
+                                .ok(ApiResponse.success("Étudiants non affectés (année en cours) récupérés.", result));
         }
 
+        /**
+         * Teacher workload stats for the CURRENT year.
+         */
         @GetMapping("/workload-stats")
         @PreAuthorize("hasRole('ENSEIGNANT')")
         public ResponseEntity<ApiResponse<Page<TeacherWorkloadDTO>>> getTeachersWorkload(
@@ -52,7 +74,8 @@ public class AffectationController {
                         @RequestParam(defaultValue = "10") int size) {
 
                 Page<TeacherWorkloadDTO> result = affectationService.getTeachersWorkload(createPageable(page, size));
-                return ResponseEntity.ok(ApiResponse.success("Charge des enseignants récupérée.", result));
+                return ResponseEntity
+                                .ok(ApiResponse.success("Charge des enseignants (année en cours) récupérée.", result));
         }
 
         @GetMapping("/workload")
@@ -76,14 +99,17 @@ public class AffectationController {
         @PreAuthorize("hasRole('ENSEIGNANT')")
         public ResponseEntity<ApiResponse<String>> abort(@PathVariable Long id) {
                 affectationService.abortAffectation(id);
-                return ResponseEntity.ok(ApiResponse.success("Affectation annulée et quota mis à jour.", null));
+                return ResponseEntity.ok(ApiResponse.success("Affectation annulée.", null));
         }
 
+        /**
+         * Total count for the CURRENT year.
+         */
         @GetMapping("/stats/count")
         @PreAuthorize("hasRole('ENSEIGNANT')")
         public ResponseEntity<ApiResponse<Long>> getTotalCount() {
                 return ResponseEntity.ok(ApiResponse.success(
-                                "Nombre total d'affectations récupéré.",
+                                "Nombre d'affectations (année en cours) récupéré.",
                                 affectationService.getTotalAssignmentsCount()));
         }
 }

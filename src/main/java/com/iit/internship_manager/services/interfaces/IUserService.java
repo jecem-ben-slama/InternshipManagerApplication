@@ -2,6 +2,7 @@ package com.iit.internship_manager.services.interfaces;
 
 import org.springframework.data.domain.Page;
 
+import com.iit.internship_manager.domain.enums.DepartmentType;
 import com.iit.internship_manager.web.dtos.UserResponseDTO;
 
 public interface IUserService {
@@ -16,4 +17,7 @@ public interface IUserService {
     void reactivate(Long id);
 
     boolean existsByEmail(String email);
+    Page<UserResponseDTO> getTeachersByMyDepartment(int page, int size, DepartmentType filterDept);
+    Page<UserResponseDTO> getStudentsByMyDepartment(int page, int size, DepartmentType filterDept);
+    Page<UserResponseDTO> findAllByDepartment(DepartmentType department, int page, int size);
 }
