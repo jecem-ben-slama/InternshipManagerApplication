@@ -4,6 +4,9 @@ import com.iit.internship_manager.domain.enums.DepartmentType;
 import com.iit.internship_manager.domain.models.AcademicYear;
 import com.iit.internship_manager.domain.models.Affectation;
 import com.iit.internship_manager.domain.models.Enseignant;
+import com.iit.internship_manager.domain.models.Etudiant;
+import com.iit.internship_manager.domain.models.Groupe;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -52,9 +55,16 @@ public interface AffectationRepository extends JpaRepository<Affectation, Long> 
     long countByDepartmentAndAnneeUniversitaire(@Param("dept") DepartmentType dept, @Param("year") AcademicYear year);
 
     // --- Legacy / Specific Lookups ---
-
+boolean existsByGroupeAndAnneeUniversitaire(Groupe groupe, AcademicYear annee);
     Optional<Affectation> findByGroupeId(Long groupeId);
 
     @Query("SELECT a FROM Affectation a JOIN FETCH a.groupe g JOIN FETCH g.membres WHERE a.encadrant.id = :teacherId")
     List<Affectation> findByEncadrantId(@Param("teacherId") Long teacherId);
+    
+    @Query("SELECT COUNT(a) > 0 FROM Affectation a " +
+                    "JOIN a.groupe g " +
+                    "JOIN g.membres m " + // Changed from g.etudiants to g.membres
+                    "WHERE m = :etudiant AND a.anneeUniversitaire = :year")
+    boolean existsByEtudiantAndYear(@Param("etudiant") Etudiant etudiant,
+                    @Param("year") AcademicYear year);
 }

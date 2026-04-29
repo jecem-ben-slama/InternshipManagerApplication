@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class MessageResponseDTO {
+public class WSMessageResponseDTO {
     private Long id;
     private String content;
     private Long senderId;

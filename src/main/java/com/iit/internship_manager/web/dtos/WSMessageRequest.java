@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class MessageRequest {
+public class WSMessageRequest {
     private String content;
     private Long senderId;
     private String fileLink; // Optional: for attachments

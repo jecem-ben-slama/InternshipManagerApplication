@@ -3,6 +3,8 @@ package com.iit.internship_manager.repositories;
 import com.iit.internship_manager.domain.enums.DemandeStatus;
 import com.iit.internship_manager.domain.models.AcademicYear;
 import com.iit.internship_manager.domain.models.Candidature;
+import com.iit.internship_manager.domain.models.Sujet;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -19,6 +21,7 @@ public interface CandidatureRepository extends JpaRepository<Candidature, Long> 
     // Check if any member of a group has already applied for this subject
     @Query("SELECT COUNT(c) > 0 FROM Candidature c JOIN c.groupe.membres m WHERE m.id = :studentId AND c.sujet.id = :sujetId")
     boolean existsByStudentInGroupAndSujetId(@Param("studentId") Long studentId, @Param("sujetId") Long sujetId);
+    List<Candidature> findBySujet(Sujet sujet);
 
     // --- STUDENT VIEW (Group-Aware & Year-Aware) ---
     Page<Candidature> findByGroupeMembresIdAndAnneeUniversitaire(Long studentId, AcademicYear year, Pageable pageable);
@@ -29,6 +32,7 @@ public interface CandidatureRepository extends JpaRepository<Candidature, Long> 
     List<Candidature> findByGroupeMembresIdAndAnneeUniversitaire(Long studentId, AcademicYear year);
 
     boolean existsBySujetId(Long sujetId);
+    List<Candidature> findBySujetAndStatut(Sujet sujet, DemandeStatus statut);
 
     // Used for automatic rejection logic in the current cycle
     List<Candidature> findByGroupeMembresIdInAndStatutInAndAnneeUniversitaire(

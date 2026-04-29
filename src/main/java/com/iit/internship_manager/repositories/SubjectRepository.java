@@ -4,7 +4,9 @@ import com.iit.internship_manager.domain.enums.DepartmentType;
 import com.iit.internship_manager.domain.enums.SujetStatus;
 import com.iit.internship_manager.domain.models.AcademicYear;
 import com.iit.internship_manager.domain.models.Sujet;
+import com.iit.internship_manager.domain.models.Enseignant;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.domain.Page;
@@ -59,6 +61,7 @@ public interface SubjectRepository extends JpaRepository<Sujet, Long> {
 
         Page<Sujet> findByAnneeUniversitaire(AcademicYear year, Pageable pageable);
 
+        List<Sujet> findByEnseignantAndAnneeUniversitaire(Enseignant teacher, AcademicYear year);
         // 6. Restored your specific Modifying Query with active year safety
         @Modifying
         @Transactional

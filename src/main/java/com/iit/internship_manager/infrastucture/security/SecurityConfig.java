@@ -38,6 +38,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // 1. Allow everyone to Register or Login
                         .requestMatchers("/api/auth/login").permitAll()
+                        .requestMatchers("/ws-endpoint/**").permitAll()
                         
 
                         // 3. All other requests must be authenticated

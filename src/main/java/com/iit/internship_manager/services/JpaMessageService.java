@@ -2,9 +2,7 @@ package com.iit.internship_manager.services;
 
 import com.iit.internship_manager.domain.exceptions.ResourceNotFoundException;
 import com.iit.internship_manager.domain.exceptions.UnauthorizedActionException;
-import com.iit.internship_manager.domain.models.Candidature;
-import com.iit.internship_manager.domain.models.CandidatureMessage;
-import com.iit.internship_manager.domain.models.Utilisateur;
+import com.iit.internship_manager.domain.models.*;
 import com.iit.internship_manager.repositories.CandidatureRepository;
 import com.iit.internship_manager.repositories.MessageRepository;
 import com.iit.internship_manager.services.interfaces.IMessageService;
@@ -12,7 +10,6 @@ import com.iit.internship_manager.services.interfaces.ISecurityContext;
 import com.iit.internship_manager.web.dtos.MessageRequest;
 import com.iit.internship_manager.web.dtos.MessageResponseDTO;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.annotation.Primary;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -23,13 +20,12 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 
 @Service
-@Primary
 @RequiredArgsConstructor
 public class JpaMessageService implements IMessageService {
 
     private final MessageRepository messageRepository;
     private final CandidatureRepository candidatureRepository;
-    private final ISecurityContext securityContext; // Decoupled Security
+    private final ISecurityContext securityContext;
 
     @Override
     @Transactional(readOnly = true)
@@ -37,20 +33,18 @@ public class JpaMessageService implements IMessageService {
         Candidature candidature = candidatureRepository.findById(candidatureId)
                 .orElseThrow(() -> new ResourceNotFoundException("Candidature", candidatureId));
 
-        // Use the securityContext instead of a local helper
         validateParticipant(candidature, securityContext.getCurrentUser());
 
         Pageable pageable = PageRequest.of(page, size, Sort.by("sentAt").descending());
 
         return messageRepository.findByCandidatureId(candidatureId, pageable)
-                .map(MessageResponseDTO::fromEntity);
+                .map(this::mapToResponseDTO); // Updated mapping
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<MessageResponseDTO> getAllMessagesByCandidature(Long candidatureId, int page, int size) {
-        // Standard view: Page 0 with a larger buffer
-        return getConversation(candidatureId, 0, 50);
+        return getConversation(candidatureId, page, size);
     }
 
     @Override
@@ -69,7 +63,10 @@ public class JpaMessageService implements IMessageService {
         message.setFileLink(dto.getFileLink());
         message.setSentAt(LocalDateTime.now());
 
-        return MessageResponseDTO.fromEntity(messageRepository.save(message));
+        // If your entity requires the academic year (from previous models)
+        // message.setAnneeUniversitaire(candidature.getAnneeUniversitaire());
+
+        return mapToResponseDTO(messageRepository.save(message));
     }
 
     @Override
@@ -78,7 +75,6 @@ public class JpaMessageService implements IMessageService {
         CandidatureMessage message = messageRepository.findById(messageId)
                 .orElseThrow(() -> new ResourceNotFoundException("Message", messageId));
 
-        // Decoupled ID check
         if (!message.getSender().getId().equals(securityContext.getCurrentUserId())) {
             throw new UnauthorizedActionException("Vous ne pouvez supprimer que vos propres messages.");
         }
@@ -87,13 +83,26 @@ public class JpaMessageService implements IMessageService {
     }
 
     /**
-     * Internal validation logic for chat participants
+     * Maps the Entity to the new Builder-based DTO
      */
+    private MessageResponseDTO mapToResponseDTO(CandidatureMessage message) {
+        return MessageResponseDTO.builder()
+                .id(message.getId())
+                .content(message.getContent())
+                .senderId(message.getSender().getId())
+                .senderName(message.getSender().getNom() + " " + message.getSender().getPrenom())
+                .sentAt(message.getSentAt())
+                .fileLink(message.getFileLink())
+                .build();
+    }
+
     private void validateParticipant(Candidature candidature, Utilisateur user) {
         Long currentUserId = user.getId();
 
+        // Check Teacher
         boolean isTeacher = candidature.getSujet().getEnseignant().getId().equals(currentUserId);
 
+        // Check Group Members
         boolean isMember = false;
         if (candidature.getGroupe() != null && candidature.getGroupe().getMembres() != null) {
             isMember = candidature.getGroupe().getMembres().stream()

@@ -1,11 +1,14 @@
 package com.iit.internship_manager.services;
 
 import com.iit.internship_manager.domain.models.*;
+import com.iit.internship_manager.domain.enums.DemandeStatus;
 import com.iit.internship_manager.domain.enums.SujetStatus;
 import com.iit.internship_manager.domain.exceptions.ResourceNotFoundException;
 import com.iit.internship_manager.domain.exceptions.UnauthorizedActionException;
 import com.iit.internship_manager.repositories.AcademicYearRepository;
 import com.iit.internship_manager.repositories.AffectationRepository;
+import com.iit.internship_manager.repositories.CandidatureRepository;
+import com.iit.internship_manager.repositories.SubjectRepository;
 import com.iit.internship_manager.repositories.UserRepository;
 import com.iit.internship_manager.services.interfaces.IAffectationService;
 import com.iit.internship_manager.services.interfaces.ISecurityContext;
@@ -28,6 +31,8 @@ public class AffectationServiceImpl implements IAffectationService {
 
     private final AffectationRepository affectationRepository;
     private final UserRepository userRepository;
+    private final SubjectRepository sujetRepository;
+    private final CandidatureRepository candidatureRepository;
     private final ISecurityContext securityContext;
     private final CurrentYearProvider currentYearProvider; // For year logic
     private final AcademicYearRepository academicYearRepository; // For year logic
@@ -149,7 +154,7 @@ public class AffectationServiceImpl implements IAffectationService {
                             .build();
                 });
     }
-
+    
     @Override
     @Transactional
     public void abortAffectation(Long affectationId) {
@@ -158,16 +163,57 @@ public class AffectationServiceImpl implements IAffectationService {
 
         checkResponsableAccess(affectation);
 
-        // Reset subject status
-        Sujet sujet = affectation.getSujet();
-        sujet.setStatut(SujetStatus.AVAILABLE);
+        AcademicYear currentYear = affectation.getAnneeUniversitaire();
+        Sujet currentSujet = affectation.getSujet();
+        Enseignant teacher = currentSujet.getEnseignant();
+        Candidature originalCandidature = affectation.getOriginalCandidature();
 
+        // 1. Reset the specific subject
+        currentSujet.setStatut(SujetStatus.AVAILABLE);
+        sujetRepository.save(currentSujet);
+
+        // 2. CRITICAL STEP: Delete the affectation FIRST
+        // This ensures that when we check "existsByEtudiantAndYear", this record is
+        // gone
         affectationRepository.delete(affectation);
-        // Note: We don't manually decrement teacher.encadrementsActuels anymore because
-        // count is dynamic
-    }
 
-    @Override
+        // Force Hibernate to sync with DB so the record is actually gone before the
+        // next queries
+        affectationRepository.flush();
+
+        // 3. Refresh Teacher Quota Subjects
+        List<Sujet> teacherSubjects = sujetRepository.findByEnseignantAndAnneeUniversitaire(teacher, currentYear);
+        long currentLoad = affectationRepository.countByEncadrantAndAnneeUniversitaire(teacher, currentYear);
+
+        if (currentLoad < teacher.getQuotaAnnuel()) {
+            for (Sujet s : teacherSubjects) {
+                if (s.getStatut() == SujetStatus.TAKEN) {
+                    s.setStatut(SujetStatus.AVAILABLE);
+                }
+            }
+            sujetRepository.saveAll(teacherSubjects);
+        }
+
+        // 4. Revive Candidatures
+        List<Candidature> toRevive = candidatureRepository.findBySujetAndStatut(currentSujet,
+                DemandeStatus.REJECTED_BY_SYSTEM);
+        if (originalCandidature != null) {
+            toRevive.add(originalCandidature);
+        }
+
+        for (Candidature cand : toRevive) {
+            // Now this check will accurately return 'false' for these students
+            // because the affectation was deleted and flushed.
+            boolean isAnyStudentAssigned = cand.getGroupe().getMembres().stream()
+                    .anyMatch(m -> affectationRepository.existsByEtudiantAndYear(m, currentYear));
+
+            if (!isAnyStudentAssigned) {
+                cand.setStatut(DemandeStatus.PENDING);
+            }
+        }
+        candidatureRepository.saveAll(toRevive);
+    }
+ @Override
     @Transactional(readOnly = true)
     public long getTotalAssignmentsCount() {
         Utilisateur currentUser = securityContext.getCurrentUser();
