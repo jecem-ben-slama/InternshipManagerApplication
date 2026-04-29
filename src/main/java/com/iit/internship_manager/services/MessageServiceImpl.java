@@ -11,12 +11,15 @@ import com.iit.internship_manager.web.dtos.MessageRequest;
 import com.iit.internship_manager.web.dtos.MessageResponseDTO;
 
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.context.annotation.Primary;
 import org.springframework.data.domain.Page;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Primary
 @RequiredArgsConstructor
 public class MessageServiceImpl implements IMessageService {
 

@@ -66,10 +66,14 @@ public interface CandidatureRepository extends JpaRepository<Candidature, Long> 
 
         boolean existsByGroupeIdAndSujetId(Long groupeId, Long sujetId);
 
-        // Checks if the user (student OR teacher) is linked to the candidature
-        @Query("SELECT COUNT(c) > 0 FROM Candidature c WHERE c.id = :id AND " +
-                        "(c.etudiant.email = :email OR c.encadrant.email = :email)")
-        boolean existsByIdAndUserEmail(@Param("id") Long id, @Param("email") String email);
+       @Query("SELECT COUNT(c) > 0 FROM Candidature c " +
+           "LEFT JOIN c.groupe g " +
+           "LEFT JOIN g.membres m " + // Changed from 'etudiants' to 'membres'
+           "LEFT JOIN c.sujet s " +
+           "LEFT JOIN s.enseignant ens " +
+           "WHERE c.id = :id AND (m.email = :email OR ens.email = :email)")
+    boolean existsByIdAndUserEmail(@Param("id") Long id, @Param("email") String email);
+
 
         Optional<Candidature> findByGroupeIdAndStatut(Long groupeId, DemandeStatus statut);
 }

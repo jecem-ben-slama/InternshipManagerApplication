@@ -60,9 +60,7 @@ public class CandidatureServiceImpl implements ICandidatureService {
         // 4. Update candidature status
         selected.setStatut(DemandeStatus.ACCEPTED_BY_TEACHER);
 
-        // 5. Update subject status
-        sujet.setStatut(SujetStatus.TAKEN);
-
+       
         // 6. Auto-lock remaining subjects if teacher hits quota
         if ((currentCount + 1) >= teacher.getQuotaAnnuel()) {
             subjectRepository.markAllSubjectsAsTakenForTeacher(teacher.getId());
