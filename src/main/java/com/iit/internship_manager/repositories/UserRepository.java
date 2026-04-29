@@ -52,10 +52,6 @@ public interface UserRepository extends JpaRepository<Utilisateur, Long> {
         @Query("SELECT e FROM Enseignant e WHERE e.department = :dept AND e.active = true")
         Page<Enseignant> findAllEnseignantsByDepartment(@Param("dept") DepartmentType dept, Pageable pageable);
 
-        // Alias for specific logic contexts
-        @Query("SELECT e FROM Enseignant e WHERE e.department = :dept AND e.active = true")
-        Page<Enseignant> findEnseignantsByDepartment(@Param("dept") DepartmentType dept, Pageable pageable);
-
         // --- Student Specific Queries (Admin/Global) ---
 
         @Query("SELECT u FROM Etudiant u WHERE u.active = true")
@@ -91,14 +87,15 @@ public interface UserRepository extends JpaRepository<Utilisateur, Long> {
         @Query("SELECT e FROM Etudiant e WHERE e.id NOT IN " +
                         "(SELECT m.id FROM Affectation a JOIN a.groupe g JOIN g.membres m)")
         List<Etudiant> findStudentsWithoutAffectationList();
+
         @Query("SELECT e FROM Etudiant e WHERE e.department = :dept " +
-           "AND NOT EXISTS ( " +
-           "  SELECT a FROM Affectation a JOIN a.groupe g JOIN g.membres m " +
-           "  WHERE m.id = e.id AND a.anneeUniversitaire = :year " +
-           ")")
-    Page<Etudiant> findStudentsWithoutAffectationByDepartmentAndYear(
-            @Param("dept") DepartmentType dept, 
-            @Param("year") AcademicYear year, 
-            Pageable pageable);
+                        "AND NOT EXISTS ( " +
+                        "  SELECT a FROM Affectation a JOIN a.groupe g JOIN g.membres m " +
+                        "  WHERE m.id = e.id AND a.anneeUniversitaire = :year " +
+                        ")")
+        Page<Etudiant> findStudentsWithoutAffectationByDepartmentAndYear(
+                        @Param("dept") DepartmentType dept,
+                        @Param("year") AcademicYear year,
+                        Pageable pageable);
 
 }

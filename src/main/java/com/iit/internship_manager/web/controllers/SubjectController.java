@@ -53,7 +53,7 @@ public class SubjectController {
         }
 
         /**
-         * Get subjects for the current teacher in the CURRENT year.
+         * Get subjects for the current teacher (full history, all years).
          */
         @GetMapping("/my-subjects")
         @PreAuthorize("hasRole('ENSEIGNANT')")
@@ -61,13 +61,12 @@ public class SubjectController {
                         @RequestParam(defaultValue = "0") int page,
                         @RequestParam(defaultValue = "10") int size) {
                 Pageable pageable = PageRequest.of(page, size);
-                return ResponseEntity.ok(ApiResponse.success("Vos sujets de l'année en cours récupérés",
+                return ResponseEntity.ok(ApiResponse.success("Vos sujets récupérés",
                                 subjectService.getSubjectsByCurrentTeacher(pageable)));
         }
 
         /**
          * ARCHIVE VIEW: Get subjects for a specific academic year.
-         * Useful for Responsable PFE to see 2025 subjects while in 2026.
          */
         @GetMapping("/archive/{yearId}")
         @PreAuthorize("hasAnyRole('ENSEIGNANT', 'ADMIN_IT')")
@@ -81,29 +80,24 @@ public class SubjectController {
         }
 
         /**
-         * Get all AVAILABLE subjects for the CURRENT year (Main Student View).
+         * Get subjects for the CURRENT year, with an optional status filter.
+         * Replaces the old GET / and GET /filter endpoints — status is optional.
+         * Example: GET /api/subjects → all subjects for current year
+         * Example: GET /api/subjects?status=AVAILABLE → filtered by status
          */
         @GetMapping
         @PreAuthorize("hasAnyRole('ENSEIGNANT', 'ETUDIANT', 'ADMIN_IT')")
-        public ResponseEntity<ApiResponse<Page<SujetResponseDTO>>> getAllCurrentSujets(
+        public ResponseEntity<ApiResponse<Page<SujetResponseDTO>>> getCurrentSujets(
+                        @RequestParam(required = false) SujetStatus status,
                         @RequestParam(defaultValue = "0") int page,
                         @RequestParam(defaultValue = "10") int size) {
                 Pageable pageable = PageRequest.of(page, size);
+                if (status != null) {
+                        return ResponseEntity.ok(ApiResponse.success("Sujets filtrés (année en cours) récupérés",
+                                        subjectService.getSubjectsByStatus(status, pageable)));
+                }
                 return ResponseEntity.ok(ApiResponse.success("Sujets de l'année en cours récupérés",
                                 subjectService.findAll(pageable)));
-        }
-
-        /**
-         * Filter by status within the CURRENT year.
-         */
-        @GetMapping("/filter")
-        public ResponseEntity<ApiResponse<Page<SujetResponseDTO>>> getByStatus(
-                        @RequestParam SujetStatus status,
-                        @RequestParam(defaultValue = "0") int page,
-                        @RequestParam(defaultValue = "10") int size) {
-                Pageable pageable = PageRequest.of(page, size);
-                return ResponseEntity.ok(ApiResponse.success("Sujets filtrés (année en cours) récupérés",
-                                subjectService.getSubjectsByStatus(status, pageable)));
         }
 
         @PatchMapping("/{id}/status")
@@ -116,12 +110,14 @@ public class SubjectController {
         }
 
         @GetMapping("/{id}")
+        @PreAuthorize("hasAnyRole('ENSEIGNANT', 'ETUDIANT', 'ADMIN_IT')")
         public ResponseEntity<ApiResponse<SujetResponseDTO>> getById(@PathVariable Long id) {
                 return ResponseEntity.ok(ApiResponse.success("Détails du sujet récupérés",
                                 subjectService.findById(id)));
         }
 
         @PutMapping("/{id}")
+        @PreAuthorize("hasAnyRole('ENSEIGNANT', 'ADMIN_IT')")
         public ResponseEntity<ApiResponse<SujetResponseDTO>> update(
                         @PathVariable Long id,
                         @Valid @RequestBody SujetRequest request) {

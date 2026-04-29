@@ -18,51 +18,58 @@ import java.util.Optional;
 @Repository
 public interface CandidatureRepository extends JpaRepository<Candidature, Long> {
 
-    // Check if any member of a group has already applied for this subject
-    @Query("SELECT COUNT(c) > 0 FROM Candidature c JOIN c.groupe.membres m WHERE m.id = :studentId AND c.sujet.id = :sujetId")
-    boolean existsByStudentInGroupAndSujetId(@Param("studentId") Long studentId, @Param("sujetId") Long sujetId);
-    List<Candidature> findBySujet(Sujet sujet);
+        // --- STUDENT VIEW (Group-Aware & Year-Aware) ---
 
-    // --- STUDENT VIEW (Group-Aware & Year-Aware) ---
-    Page<Candidature> findByGroupeMembresIdAndAnneeUniversitaire(Long studentId, AcademicYear year, Pageable pageable);
+        Page<Candidature> findByGroupeMembresIdAndAnneeUniversitaire(
+                        Long studentId, AcademicYear year, Pageable pageable);
 
-    Page<Candidature> findByGroupeMembresIdAndStatutAndAnneeUniversitaire(Long studentId, DemandeStatus statut,
-            AcademicYear year, Pageable pageable);
+        Page<Candidature> findByGroupeMembresIdAndStatutAndAnneeUniversitaire(
+                        Long studentId, DemandeStatus statut, AcademicYear year, Pageable pageable);
 
-    List<Candidature> findByGroupeMembresIdAndAnneeUniversitaire(Long studentId, AcademicYear year);
+        List<Candidature> findByGroupeMembresIdAndAnneeUniversitaire(
+                        Long studentId, AcademicYear year);
 
-    boolean existsBySujetId(Long sujetId);
-    List<Candidature> findBySujetAndStatut(Sujet sujet, DemandeStatus statut);
+        // Used for automatic rejection logic in the current cycle
+        List<Candidature> findByGroupeMembresIdInAndStatutInAndAnneeUniversitaire(
+                        List<Long> memberIds, List<DemandeStatus> statuts, AcademicYear year);
 
-    // This checks if the user (student OR teacher) is linked to the candidature
-    @Query("SELECT COUNT(c) > 0 FROM Candidature c WHERE c.id = :id AND " +
-                    "(c.etudiant.email = :email OR c.encadrant.email = :email)")
-    boolean existsByIdAndUserEmail(@Param("id") Long id, @Param("email") String email);
-    // Used for automatic rejection logic in the current cycle
-    List<Candidature> findByGroupeMembresIdInAndStatutInAndAnneeUniversitaire(
-            List<Long> memberIds,
-            List<DemandeStatus> statuts,
-            AcademicYear year);
+        // --- TEACHER VIEW (Year-Aware) ---
+        // Covers both the plain list and the optional-status archive query.
+        // Pass null for status to get all candidatures for that teacher/year.
+        @Query("SELECT c FROM Candidature c WHERE c.anneeUniversitaire = :year " +
+                        "AND (:status IS NULL OR c.statut = :status) " +
+                        "AND c.sujet.enseignant.id = :teacherId")
+        Page<Candidature> findByTeacherAndYearAndStatus(
+                        @Param("teacherId") Long teacherId,
+                        @Param("year") AcademicYear year,
+                        @Param("status") DemandeStatus status,
+                        Pageable pageable);
 
-    // --- TEACHER VIEW (Year-Aware) ---
-    Page<Candidature> findBySujetEnseignantIdAndAnneeUniversitaire(Long teacherId, AcademicYear year,
-            Pageable pageable);
+        // --- SUBJECT-LEVEL LOOKUPS ---
 
-    Page<Candidature> findBySujetEnseignantIdAndStatutAndAnneeUniversitaire(Long teacherId, DemandeStatus statut,
-            AcademicYear year, Pageable pageable);
-@Query("SELECT c FROM Candidature c WHERE c.anneeUniversitaire = :year " +
-           "AND (:status IS NULL OR c.statut = :status) " +
-           "AND c.sujet.enseignant.id = :teacherId")
-    Page<Candidature> findByYearAndTeacher(@Param("year") AcademicYear year, 
-                                           @Param("status") DemandeStatus status, 
-                                           @Param("teacherId") Long teacherId, 
-                                           Pageable pageable);
+        List<Candidature> findBySujet(Sujet sujet);
 
-    // Find other candidatures for the same subject to reject them (Year is implicit
-    // via sujetId, but good for safety)
-    List<Candidature> findBySujetIdAndIdNot(Long sujetId, Long acceptedCandidatureId);
+        List<Candidature> findBySujetAndStatut(Sujet sujet, DemandeStatus statut);
 
-    Optional<Candidature> findByGroupeIdAndStatut(Long groupeId, DemandeStatus statut);
+        // Find all other candidatures for a subject after one is accepted
+        List<Candidature> findBySujetIdAndIdNot(Long sujetId, Long acceptedCandidatureId);
 
-    boolean existsByGroupeIdAndSujetId(Long groupeId, Long sujetId);
+        boolean existsBySujetId(Long sujetId);
+
+        // --- DUPLICATE / RACE-CONDITION GUARDS ---
+
+        // Check if any member of a group has already applied for this subject
+        @Query("SELECT COUNT(c) > 0 FROM Candidature c JOIN c.groupe.membres m " +
+                        "WHERE m.id = :studentId AND c.sujet.id = :sujetId")
+        boolean existsByStudentInGroupAndSujetId(
+                        @Param("studentId") Long studentId, @Param("sujetId") Long sujetId);
+
+        boolean existsByGroupeIdAndSujetId(Long groupeId, Long sujetId);
+
+        // Checks if the user (student OR teacher) is linked to the candidature
+        @Query("SELECT COUNT(c) > 0 FROM Candidature c WHERE c.id = :id AND " +
+                        "(c.etudiant.email = :email OR c.encadrant.email = :email)")
+        boolean existsByIdAndUserEmail(@Param("id") Long id, @Param("email") String email);
+
+        Optional<Candidature> findByGroupeIdAndStatut(Long groupeId, DemandeStatus statut);
 }

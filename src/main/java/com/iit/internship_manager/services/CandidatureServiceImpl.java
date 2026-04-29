@@ -25,8 +25,8 @@ public class CandidatureServiceImpl implements ICandidatureService {
     private final IGroupeService groupeService;
     private final ISecurityContext securityContext;
     private final AffectationRepository affectationRepository;
-    private final CurrentYearProvider currentYearProvider; // Added for Year Logic
-    private final AcademicYearRepository academicYearRepository; // Added for Year Logic
+    private final CurrentYearProvider currentYearProvider;
+    private final AcademicYearRepository academicYearRepository;
 
     @Override
     @Transactional
@@ -34,7 +34,7 @@ public class CandidatureServiceImpl implements ICandidatureService {
         Candidature selected = getValidatedCandidatureForTeacher(candidatureId);
         Enseignant teacher = selected.getSujet().getEnseignant();
         Sujet sujet = selected.getSujet();
-        AcademicYear currentYear = currentYearProvider.getCurrent(); // Get active year
+        AcademicYear currentYear = currentYearProvider.getCurrent();
 
         // 1. State Guard
         if (selected.getStatut() != DemandeStatus.PENDING &&
@@ -42,7 +42,7 @@ public class CandidatureServiceImpl implements ICandidatureService {
             throw new InvalidCandidatureStateException("Cette candidature a déjà été traitée.");
         }
 
-        // 2. Race condition guard: verify all members are still free for the CURRENT
+        // 2. Race condition guard: verify all members are still free for the current
         // year
         List<Long> memberIds = selected.getGroupe().getMembres().stream().map(Etudiant::getId).toList();
         if (affectationRepository.existsByGroupeMembresIdInAndAnneeUniversitaire(memberIds, currentYear)) {
@@ -51,66 +51,60 @@ public class CandidatureServiceImpl implements ICandidatureService {
             throw new BadRequestException("Un ou plusieurs membres du groupe sont déjà affectés pour cette année.");
         }
 
-        // 3. Quota Check (Needs to be year-aware)
-        // We calculate current encadrements based on the active year only
+        // 3. Quota Check (year-aware)
         long currentCount = affectationRepository.countByEncadrantAndAnneeUniversitaire(teacher, currentYear);
         if (currentCount >= teacher.getQuotaAnnuel()) {
             throw new QuotaExceededException();
         }
 
-        // 4. Update Status
+        // 4. Update candidature status
         selected.setStatut(DemandeStatus.ACCEPTED_BY_TEACHER);
 
-        // 5. Update Subject Status
+        // 5. Update subject status
         sujet.setStatut(SujetStatus.TAKEN);
 
-        // --- NEW: YEAR-AWARE QUOTA AUTO-LOCK ---
-        // If the teacher hits their limit for the active year, hide other current
-        // available subjects
+        // 6. Auto-lock remaining subjects if teacher hits quota
         if ((currentCount + 1) >= teacher.getQuotaAnnuel()) {
             subjectRepository.markAllSubjectsAsTakenForTeacher(teacher.getId());
         }
 
-        // 6. Create official Affectation
+        // 7. Create official Affectation
         Affectation affectation = new Affectation();
         affectation.setGroupe(selected.getGroupe());
         affectation.setEncadrant(teacher);
         affectation.setSujet(sujet);
         affectation.setDateAffectation(LocalDateTime.now());
         affectation.setOriginalCandidature(selected);
-        affectation.setAnneeUniversitaire(currentYear); // Stamp with active year
+        affectation.setAnneeUniversitaire(currentYear);
 
-        // Persistent saves
         affectationRepository.save(affectation);
         subjectRepository.save(sujet);
         candidatureRepository.save(selected);
 
-        // 7. Cleanup
+        // 8. Cleanup: reject other pending applications from the same group
         rejectOtherApplicationsForGroup(selected);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<CandidatureResponseDTO> getCandidaturesByYear(String yearId, DemandeStatus status, int page, int size) {
-        // 1. Fetch the requested Academic Year
         AcademicYear year = academicYearRepository.findById(yearId)
-                .orElseThrow(() -> new ResourceNotFoundException("Année universitaire " + yearId + " introuvable", null));
+                .orElseThrow(
+                        () -> new ResourceNotFoundException("Année universitaire " + yearId + " introuvable", null));
 
-        // 2. Identify the current user (Teacher)
         Utilisateur currentUser = securityContext.getCurrentUser();
-
-        // 3. Security Check: Only teachers and admins should access archives here
         if (!(currentUser instanceof Enseignant teacher)) {
             throw new UnauthorizedActionException(
                     "Seuls les enseignants peuvent consulter les archives des candidatures.");
         }
 
         Pageable pageable = PageRequest.of(page, size);
-
-        // 4. Query the repository
-        return candidatureRepository.findByYearAndTeacher(year, status, teacher.getId(), pageable)
+        // Uses the unified query that accepts a nullable status
+        return candidatureRepository
+                .findByTeacherAndYearAndStatus(teacher.getId(), year, status, pageable)
                 .map(CandidatureResponseDTO::fromEntity);
     }
+
     @Override
     @Transactional
     public void postuler(Long sujetId, List<Long> partnerIds) {
@@ -141,7 +135,6 @@ public class CandidatureServiceImpl implements ICandidatureService {
         Groupe group = groupeService.getOrCreateGroup(student, partnerIds);
         List<Long> memberIds = group.getMembres().stream().map(Etudiant::getId).toList();
 
-        // Updated check: is anyone affected in the CURRENT year?
         if (affectationRepository.existsByGroupeMembresIdInAndAnneeUniversitaire(memberIds, currentYear)) {
             throw new BadRequestException("Un membre est déjà affecté pour l'année " + currentYear.getId());
         }
@@ -154,7 +147,7 @@ public class CandidatureServiceImpl implements ICandidatureService {
         candidature.setGroupe(group);
         candidature.setSujet(sujet);
         candidature.setStatut(DemandeStatus.PENDING);
-        candidature.setAnneeUniversitaire(currentYear); // Stamp the application with current year
+        candidature.setAnneeUniversitaire(currentYear);
         candidatureRepository.save(candidature);
     }
 
@@ -167,26 +160,18 @@ public class CandidatureServiceImpl implements ICandidatureService {
 
         Page<Candidature> resultPage;
         if (user instanceof Etudiant) {
-            // Updated: filter by current year so students don't see 2025's applications in
-            // 2026 by default
             resultPage = (status != null)
-                    ? candidatureRepository.findByGroupeMembresIdAndStatutAndAnneeUniversitaire(user.getId(), status,
-                            currentYear, pageable)
-                    : candidatureRepository.findByGroupeMembresIdAndAnneeUniversitaire(user.getId(), currentYear,
-                            pageable);
+                    ? candidatureRepository.findByGroupeMembresIdAndStatutAndAnneeUniversitaire(
+                            user.getId(), status, currentYear, pageable)
+                    : candidatureRepository.findByGroupeMembresIdAndAnneeUniversitaire(
+                            user.getId(), currentYear, pageable);
         } else {
-            // Updated: filter by current year for teachers
-            resultPage = (status != null)
-                    ? candidatureRepository.findBySujetEnseignantIdAndStatutAndAnneeUniversitaire(user.getId(), status,
-                            currentYear, pageable)
-                    : candidatureRepository.findBySujetEnseignantIdAndAnneeUniversitaire(user.getId(), currentYear,
-                            pageable);
+            // Teacher view — uses the unified query with nullable status
+            resultPage = candidatureRepository.findByTeacherAndYearAndStatus(
+                    user.getId(), currentYear, status, pageable);
         }
         return resultPage.map(CandidatureResponseDTO::fromEntity);
     }
-
-    // ... (refuserEtudiant, demanderClarification, annulerCandidature stay largely
-    // the same as they use ID)
 
     @Override
     @Transactional
@@ -222,6 +207,8 @@ public class CandidatureServiceImpl implements ICandidatureService {
         candidatureRepository.delete(candidature);
     }
 
+    // --- Private Helpers ---
+
     private void verifyCandidatureIsModifiable(Candidature c) {
         if (c.getStatut() == DemandeStatus.ACCEPTED_BY_TEACHER ||
                 c.getStatut() == DemandeStatus.VALIDATED_BY_RESPONSABLE) {
@@ -247,12 +234,14 @@ public class CandidatureServiceImpl implements ICandidatureService {
         List<Long> memberIds = successfulApp.getGroupe().getMembres().stream().map(Etudiant::getId).toList();
         AcademicYear currentYear = currentYearProvider.getCurrent();
 
-        // Only reject other applications in the CURRENT year
         List<Candidature> toReject = candidatureRepository
-                .findByGroupeMembresIdInAndStatutInAndAnneeUniversitaire(memberIds,
+                .findByGroupeMembresIdInAndStatutInAndAnneeUniversitaire(
+                        memberIds,
                         List.of(DemandeStatus.PENDING, DemandeStatus.NEED_CLARIFICATION),
                         currentYear)
-                .stream().filter(app -> !app.getId().equals(successfulApp.getId())).toList();
+                .stream()
+                .filter(app -> !app.getId().equals(successfulApp.getId()))
+                .toList();
 
         toReject.forEach(app -> app.setStatut(DemandeStatus.REJECTED_BY_SYSTEM));
         candidatureRepository.saveAll(toReject);

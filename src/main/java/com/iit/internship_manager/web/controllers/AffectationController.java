@@ -5,7 +5,6 @@ import com.iit.internship_manager.web.dtos.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -17,24 +16,22 @@ public class AffectationController {
 
         private final IAffectationService affectationService;
 
-        private Pageable createPageable(int page, int size) {
-                return PageRequest.of(page, size);
-        }
-
         /**
          * Get active affectations for the CURRENT academic year.
+         * Role-aware: students see their own, teachers see their encadrements,
+         * responsablePFE sees the whole department.
          */
         @GetMapping
+        @PreAuthorize("hasAnyRole('ETUDIANT', 'ENSEIGNANT', 'ADMIN_IT')")
         public ResponseEntity<ApiResponse<Page<AffectationResponseDTO>>> getMyAffectations(
                         @RequestParam(defaultValue = "0") int page,
                         @RequestParam(defaultValue = "10") int size) {
-
-                Page<AffectationResponseDTO> result = affectationService.getMyAffectations(createPageable(page, size));
+                Page<AffectationResponseDTO> result = affectationService.getMyAffectations(PageRequest.of(page, size));
                 return ResponseEntity.ok(ApiResponse.success("Affectations de l'année en cours récupérées.", result));
         }
 
         /**
-         * ARCHIVE VIEW: Get affectations for a specific year.
+         * ARCHIVE VIEW: Get affectations for a specific year (teachers & admins only).
          */
         @GetMapping("/archive/{yearId}")
         @PreAuthorize("hasAnyRole('ENSEIGNANT', 'ADMIN_IT')")
@@ -42,59 +39,73 @@ public class AffectationController {
                         @PathVariable String yearId,
                         @RequestParam(defaultValue = "0") int page,
                         @RequestParam(defaultValue = "10") int size) {
-
                 Page<AffectationResponseDTO> result = affectationService.getAffectationsByYear(yearId,
-                                createPageable(page, size));
+                                PageRequest.of(page, size));
                 return ResponseEntity.ok(ApiResponse.success("Archives des affectations récupérées.", result));
         }
 
         /**
-         * Students in the department without an assignment for the CURRENT year.
+         * Students without an assignment for the CURRENT year.
+         * Accessible to any ENSEIGNANT — service enforces isResponsablePFE() (entity
+         * field) internally.
          */
         @GetMapping("/unassigned")
         @PreAuthorize("hasRole('ENSEIGNANT')")
         public ResponseEntity<ApiResponse<Page<EtudiantResponseDTO>>> getUnassignedStudents(
                         @RequestParam(defaultValue = "0") int page,
                         @RequestParam(defaultValue = "10") int size) {
-
-                Page<EtudiantResponseDTO> result = affectationService.getUnassignedStudents(createPageable(page, size))
+                Page<EtudiantResponseDTO> result = affectationService
+                                .getUnassignedStudents(PageRequest.of(page, size))
                                 .map(EtudiantResponseDTO::fromEntity);
-
                 return ResponseEntity
                                 .ok(ApiResponse.success("Étudiants non affectés (année en cours) récupérés.", result));
         }
 
         /**
          * Teacher workload stats for the CURRENT year.
+         * Accessible to any ENSEIGNANT — service enforces isResponsablePFE() (entity
+         * field) internally.
          */
         @GetMapping("/workload-stats")
         @PreAuthorize("hasRole('ENSEIGNANT')")
         public ResponseEntity<ApiResponse<Page<TeacherWorkloadDTO>>> getTeachersWorkload(
                         @RequestParam(defaultValue = "0") int page,
                         @RequestParam(defaultValue = "10") int size) {
-
-                Page<TeacherWorkloadDTO> result = affectationService.getTeachersWorkload(createPageable(page, size));
+                Page<TeacherWorkloadDTO> result = affectationService.getTeachersWorkload(PageRequest.of(page, size));
                 return ResponseEntity
                                 .ok(ApiResponse.success("Charge des enseignants (année en cours) récupérée.", result));
         }
 
+        /**
+         * Detailed project view (subject, teacher, coworkers) for students and
+         * teachers.
+         */
         @GetMapping("/workload")
         @PreAuthorize("hasAnyRole('ETUDIANT', 'ENSEIGNANT')")
         public ResponseEntity<ApiResponse<Page<StudentWorkloadDTO>>> getWorkloadView(
                         @RequestParam(defaultValue = "0") int page,
                         @RequestParam(defaultValue = "10") int size) {
-
-                Page<StudentWorkloadDTO> result = affectationService.getWorkloadView(createPageable(page, size));
+                Page<StudentWorkloadDTO> result = affectationService.getWorkloadView(PageRequest.of(page, size));
                 return ResponseEntity.ok(ApiResponse.success("Détails du projet récupérés.", result));
         }
 
+        /**
+         * Mark a project as completed.
+         * Service uses checkResponsableAccess which only enforces department scope,
+         * not responsable-only — kept as ENSEIGNANT to match original intent.
+         */
         @PatchMapping("/{id}/complete")
-        @PreAuthorize("hasAnyRole('RESPONSABLE', 'ENSEIGNANT')")
+        @PreAuthorize("hasRole('ENSEIGNANT')")
         public ResponseEntity<ApiResponse<String>> complete(@PathVariable Long id) {
                 affectationService.completeProject(id);
                 return ResponseEntity.ok(ApiResponse.success("Projet marqué comme terminé.", null));
         }
 
+        /**
+         * Abort an affectation.
+         * Service uses checkResponsableAccess which only enforces department scope,
+         * not responsable-only — kept as ENSEIGNANT to match original intent.
+         */
         @DeleteMapping("/{id}/abort")
         @PreAuthorize("hasRole('ENSEIGNANT')")
         public ResponseEntity<ApiResponse<String>> abort(@PathVariable Long id) {
@@ -103,7 +114,9 @@ public class AffectationController {
         }
 
         /**
-         * Total count for the CURRENT year.
+         * Total assignment count for the CURRENT year.
+         * Service is role-aware: responsablePFE gets dept-scoped count, others get
+         * global.
          */
         @GetMapping("/stats/count")
         @PreAuthorize("hasRole('ENSEIGNANT')")

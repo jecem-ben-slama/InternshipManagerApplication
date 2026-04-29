@@ -23,18 +23,18 @@ public class SubjectServiceImpl implements ISubjectService {
     private final SubjectRepository subjectRepository;
     private final UserRepository userRepository;
     private final CandidatureRepository candidatureRepository;
-    private final AcademicYearRepository academicYearRepository; // Added for year logic
+    private final AcademicYearRepository academicYearRepository;
     private final AffectationRepository affectationRepository;
     private final IGroupeService groupeService;
     private final ISecurityContext securityContext;
-    private final CurrentYearProvider currentYearProvider; // Added for Default Year Logic
+    private final CurrentYearProvider currentYearProvider;
 
     @Override
     @Transactional(readOnly = true)
     public Page<SujetResponseDTO> findAll(Pageable pageable) {
-        // You might want to filter this by active year too, or keep it open for Admin
-        // archives
-        return subjectRepository.findAll(pageable).map(SujetResponseDTO::fromEntity);
+        // Always scoped to the current active year
+        AcademicYear currentYear = currentYearProvider.getCurrent();
+        return subjectRepository.findAll(currentYear, pageable).map(SujetResponseDTO::fromEntity);
     }
 
     @Override
@@ -48,30 +48,25 @@ public class SubjectServiceImpl implements ISubjectService {
     @Override
     @Transactional(readOnly = true)
     public Page<SujetResponseDTO> getSubjectsByYear(String yearId, Pageable pageable) {
-        // 1. Find the specific academic year requested
         AcademicYear year = academicYearRepository.findById(yearId)
-                .orElseThrow(() -> new ResourceNotFoundException("Année universitaire " + yearId + " introuvable",null));
-
-        // 2. Fetch subjects for that specific year
-        // Note: We use a repository method that takes the year object as a parameter
+                .orElseThrow(
+                        () -> new ResourceNotFoundException("Année universitaire " + yearId + " introuvable", null));
         return subjectRepository.findByAnneeUniversitaire(year, pageable)
                 .map(SujetResponseDTO::fromEntity);
     }
+
     @Override
     @Transactional(readOnly = true)
     public Page<SujetResponseDTO> getSubjectsByStatus(SujetStatus status, Pageable pageable) {
         Utilisateur currentUser = securityContext.getCurrentUser();
-        AcademicYear currentYear = currentYearProvider.getCurrent(); // Get active year
+        AcademicYear currentYear = currentYearProvider.getCurrent();
 
         if (currentUser instanceof Etudiant student) {
-            // Updated: Only fetch available subjects for the student's department AND the
-            // current year
             return subjectRepository.findByStatutAndDepartmentAndAnneeUniversitaire(
                     status, student.getDepartment(), currentYear, pageable)
                     .map(SujetResponseDTO::fromEntity);
         }
 
-        // Updated: General fetch filtered by year
         return subjectRepository.findByStatutAndAnneeUniversitaire(status, currentYear, pageable)
                 .map(SujetResponseDTO::fromEntity);
     }
@@ -143,8 +138,6 @@ public class SubjectServiceImpl implements ISubjectService {
         mapCommonFields(sujet, dto);
         sujet.setEnseignant(teacher);
         sujet.setStatut(SujetStatus.AVAILABLE);
-
-        // DEFAULT YEAR SETTING
         sujet.setAnneeUniversitaire(currentYearProvider.getCurrent());
 
         return SujetResponseDTO.fromEntity(subjectRepository.save(sujet));
@@ -170,8 +163,6 @@ public class SubjectServiceImpl implements ISubjectService {
         sujet.setEnseignant(teacher);
         sujet.setProposant(student);
         sujet.setStatut(SujetStatus.PROPOSED_BY_STUDENT);
-
-        // DEFAULT YEAR SETTING
         sujet.setAnneeUniversitaire(currentYearProvider.getCurrent());
 
         Sujet savedSujet = subjectRepository.save(sujet);
@@ -183,14 +174,12 @@ public class SubjectServiceImpl implements ISubjectService {
     @Override
     @Transactional(readOnly = true)
     public Page<SujetResponseDTO> getSubjectsByCurrentTeacher(Pageable pageable) {
-        // Option: You can filter this by active year so the teacher only sees current
-        // topics
-        // Or keep it as is if they should see their entire history.
+        // Full history (all years) for the current teacher
         return subjectRepository.findByEnseignantId(securityContext.getCurrentUserId(), pageable)
                 .map(SujetResponseDTO::fromEntity);
     }
 
-    // --- PRIVATE HELPERS ---
+    // --- Private Helpers ---
 
     private void validateMembersAvailability(Etudiant creator, List<Long> partnerIds) {
         List<Long> allMemberIds = new ArrayList<>();
@@ -198,7 +187,6 @@ public class SubjectServiceImpl implements ISubjectService {
         if (partnerIds != null)
             allMemberIds.addAll(partnerIds);
 
-        // Updated: Students are available if they aren't assigned for the CURRENT year
         AcademicYear currentYear = currentYearProvider.getCurrent();
         if (affectationRepository.existsByGroupeMembresIdInAndAnneeUniversitaire(allMemberIds, currentYear)) {
             throw new UnauthorizedActionException(
@@ -211,10 +199,7 @@ public class SubjectServiceImpl implements ISubjectService {
         candidature.setGroupe(group);
         candidature.setSujet(sujet);
         candidature.setStatut(DemandeStatus.PENDING);
-
-        // DEFAULT YEAR SETTING
         candidature.setAnneeUniversitaire(currentYearProvider.getCurrent());
-
         candidatureRepository.save(candidature);
     }
 
