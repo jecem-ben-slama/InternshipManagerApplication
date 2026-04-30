@@ -33,8 +33,7 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
                 .orElseThrow(InvalidCredentialsException::new);
 
         if (!user.isActive()) {
-            throw new AccountDeactivatedException(
-                    "Ce compte est désactivé. Veuillez contacter l'administration.");
+            throw new AccountDeactivatedException();
         }
         if (!passwordEncoder.matches(req.getPassword(), user.getPassword())) {
             throw new InvalidCredentialsException();

@@ -1,8 +1,7 @@
 package com.iit.internship_manager.services.registration;
 
 import com.iit.internship_manager.domain.enums.*;
-import com.iit.internship_manager.domain.exceptions.EmailAlreadyUsedException;
-import com.iit.internship_manager.domain.exceptions.MatriculeAlreadyUsedException;
+import com.iit.internship_manager.domain.exceptions.DomainException;
 import com.iit.internship_manager.domain.models.Etudiant;
 import com.iit.internship_manager.repositories.EtudiantRepository;
 import com.iit.internship_manager.web.dtos.*;
@@ -30,10 +29,10 @@ public class StudentRegistrationStrategy
     public UserResponseDTO register(StudentRegisterRequest req) {
         // 1. Validations
         if (etudiantRepository.existsByEmail(req.getEmail())) {
-            throw new EmailAlreadyUsedException(req.getEmail());
+            throw new DomainException(ErrorCode.CONFLICT, "Email already used.");
         }
         if (etudiantRepository.existsByMatricule(req.getMatricule())) {
-            throw new MatriculeAlreadyUsedException(req.getMatricule());
+            throw new DomainException(ErrorCode.CONFLICT, "Matricule already used.");
         }
 
         // 2. Mapping

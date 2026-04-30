@@ -1,8 +1,9 @@
 // RegistrationStrategyFactory.java
 package com.iit.internship_manager.services.registration;
 
+import com.iit.internship_manager.domain.enums.ErrorCode;
 import com.iit.internship_manager.domain.enums.UserType;
-import com.iit.internship_manager.domain.exceptions.UnsupportedUserTypeException;
+import com.iit.internship_manager.domain.exceptions.DomainException;
 import com.iit.internship_manager.web.dtos.registration.RegisterRequest;
 
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,6 @@ public class RegistrationStrategyFactory {
         return (RegistrationStrategy<T>) strategies.stream()
                 .filter(s -> s.getSupportedType() == type)
                 .findFirst()
-                .orElseThrow(() -> new UnsupportedUserTypeException(type));
+                .orElseThrow(() -> new DomainException(ErrorCode.FORBIDDEN, "Combinaison type/utilisateur non supportée"));
     }
 }

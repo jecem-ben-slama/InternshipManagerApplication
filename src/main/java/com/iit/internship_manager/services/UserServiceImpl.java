@@ -1,8 +1,9 @@
 package com.iit.internship_manager.services;
 
 import com.iit.internship_manager.domain.enums.DepartmentType;
+import com.iit.internship_manager.domain.enums.ErrorCode;
+import com.iit.internship_manager.domain.exceptions.DomainException;
 import com.iit.internship_manager.domain.exceptions.ResourceNotFoundException;
-import com.iit.internship_manager.domain.exceptions.UnauthorizedActionException;
 import com.iit.internship_manager.domain.models.Utilisateur;
 import com.iit.internship_manager.repositories.UserRepository;
 import com.iit.internship_manager.services.interfaces.ISecurityContext;
@@ -40,7 +41,7 @@ public class UserServiceImpl implements IUserService {
         // Others are restricted to their own department.
         if (!securityContext.hasRole("ADMIN_IT") &&
                 !targetUser.getDepartment().equals(currentUser.getDepartment())) {
-            throw new UnauthorizedActionException("Accès refusé : cet utilisateur appartient à un autre département.");
+            throw new DomainException(ErrorCode.FORBIDDEN, "Accès refusé : cet utilisateur appartient à un autre département.");
         }
 
         return UserResponseDTO.fromEntity(targetUser);
@@ -106,7 +107,7 @@ public class UserServiceImpl implements IUserService {
     public void delete(Long id) {
         // Prevent self-deactivation
         if (id.equals(securityContext.getCurrentUserId())) {
-            throw new UnauthorizedActionException("Vous ne pouvez pas désactiver votre propre compte.");
+            throw new DomainException(ErrorCode.FORBIDDEN, "Vous ne pouvez pas désactiver votre propre compte.");
         }
 
         Utilisateur user = userRepository.findById(id)
@@ -115,7 +116,7 @@ public class UserServiceImpl implements IUserService {
         // Security check for Responsables: cannot delete users from other depts
         if (!securityContext.hasRole("ADMIN_IT") &&
                 !user.getDepartment().equals(securityContext.getCurrentUser().getDepartment())) {
-            throw new UnauthorizedActionException("Action interdite pour ce département.");
+            throw new DomainException(ErrorCode.FORBIDDEN, "Action interdite pour ce département.");
         }
 
         user.setActive(false);
@@ -141,7 +142,7 @@ public class UserServiceImpl implements IUserService {
         // department
         if (!securityContext.hasRole("ADMIN_IT") &&
                 !securityContext.getCurrentUser().getDepartment().equals(department)) {
-            throw new UnauthorizedActionException("Vous n'avez pas accès aux données de ce département.");
+            throw new DomainException(ErrorCode.FORBIDDEN, "Vous n'avez pas accès aux données de ce département.");
         }
 
         return userRepository.findAllByDepartmentAndActiveTrue(pageable, department)

@@ -1,7 +1,8 @@
 package com.iit.internship_manager.services;
 
+import com.iit.internship_manager.domain.enums.ErrorCode;
+import com.iit.internship_manager.domain.exceptions.DomainException;
 import com.iit.internship_manager.domain.exceptions.ResourceNotFoundException;
-import com.iit.internship_manager.domain.exceptions.UnauthorizedActionException;
 import com.iit.internship_manager.domain.models.Utilisateur;
 import com.iit.internship_manager.repositories.UserRepository;
 import com.iit.internship_manager.services.interfaces.ISecurityContext;
@@ -50,7 +51,7 @@ public class UserUpdateServiceImpl implements IUserUpdateService {
         updateStrategies.stream()
                 .filter(strategy -> strategy.supports(targetUser, dto))
                 .findFirst()
-                .orElseThrow(() -> new UnauthorizedActionException("Combinaison type/utilisateur non supportée"))
+                .orElseThrow(() -> new DomainException(ErrorCode.FORBIDDEN, "Combinaison type/utilisateur non supportée"))
                 .update(targetUser, dto);
 
         return UserResponseDTO.fromEntity(userRepository.save(targetUser));
@@ -65,7 +66,7 @@ public class UserUpdateServiceImpl implements IUserUpdateService {
 
         // Allow if current user is Admin
         if (!securityContext.hasRole("ADMIN_IT")) {
-            throw new UnauthorizedActionException("Accès refusé : vous ne pouvez modifier que votre propre profil.");
+            throw new DomainException(ErrorCode.FORBIDDEN, "Accès refusé : vous ne pouvez modifier que votre propre profil.");
         }
     }
 }

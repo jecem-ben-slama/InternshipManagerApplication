@@ -1,14 +1,15 @@
 package com.iit.internship_manager.services;
 
-import com.iit.internship_manager.domain.exceptions.UnauthorizedActionException;
-import com.iit.internship_manager.domain.models.Affectation;
-import com.iit.internship_manager.domain.models.Task;
+import com.iit.internship_manager.domain.enums.CreatorRole;
+import com.iit.internship_manager.domain.enums.ErrorCode;
+import com.iit.internship_manager.domain.exceptions.DomainException;
+import com.iit.internship_manager.domain.models.*;
 import com.iit.internship_manager.repositories.AffectationRepository;
 import com.iit.internship_manager.repositories.TaskRepository;
 import com.iit.internship_manager.services.interfaces.ITaskService;
+import com.iit.internship_manager.services.interfaces.ISecurityContext;
 import com.iit.internship_manager.web.dtos.TaskRequest;
 import com.iit.internship_manager.web.dtos.TaskResponseDTO;
-import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -22,46 +23,55 @@ public class TaskServiceImpl implements ITaskService {
 
     private final TaskRepository taskRepository;
     private final AffectationRepository affectationRepository;
-    private final SimpMessagingTemplate messagingTemplate; // <--- Add this
+    private final SimpMessagingTemplate messagingTemplate;
+    private final ISecurityContext securityContext;
 
     @Override
     @Transactional
-    public TaskResponseDTO createTask(TaskRequest request, String currentUserEmail) {
-        // 1. Fetch the parent Affectation
+    public TaskResponseDTO createTask(TaskRequest request) {
+        Utilisateur currentUser = securityContext.getCurrentUser();
+
+        // Check if Affectation exists
         Affectation affectation = affectationRepository.findById(request.getAffectationId())
-                .orElseThrow(() -> new EntityNotFoundException("Affectation not found"));
+                .orElseThrow(() -> new DomainException(ErrorCode.RESOURCE_NOT_FOUND, "Affectation not found"));
 
-        // 2. SECURITY CHECK: Is the current user part of this affectation?
-        boolean isTeacher = affectation.getEncadrant().getEmail().equals(currentUserEmail);
-        boolean isStudentInGroup = affectation.getGroupe().getMembres().stream()
-                .anyMatch(membre -> membre.getEmail().equals(currentUserEmail));
+        // Centralized security check
+        validateAccess(affectation, currentUser.getEmail());
 
-        if (!isTeacher && !isStudentInGroup) {
-            throw new UnauthorizedActionException("You are not authorized to add tasks to this internship.");
-        }
+        // Determine role for task creation
+        CreatorRole role = affectation.getEncadrant().getEmail().equals(currentUser.getEmail())
+                ? CreatorRole.ENSEIGNANT
+                : CreatorRole.ETUDIANT;
 
-        // 3. Build the Task entity
         Task task = Task.builder()
                 .description(request.getDescription())
                 .deadline(request.getDeadline())
                 .priorite(request.getPriorite())
-                .creePar(request.getCreePar())
+                .creePar(role)
+                .creatorName(currentUser.getNom() + " " + currentUser.getPrenom())
                 .affectation(affectation)
                 .completed(false)
                 .build();
 
-        // 4. Save and map
         Task savedTask = taskRepository.save(task);
         TaskResponseDTO response = mapToResponseDTO(savedTask);
 
-        // 5. REAL-TIME BROADCAST
-        String destination = "/topic/affectation/" + affectation.getId() + "/tasks";
-        messagingTemplate.convertAndSend(destination, response);
-
+        messagingTemplate.convertAndSend("/topic/affectation/" + affectation.getId() + "/tasks", response);
         return response;
     }
+
     @Override
+    @Transactional(readOnly = true)
     public Page<TaskResponseDTO> getTasksByAffectation(Long affectationId, Pageable pageable) {
+        Utilisateur currentUser = securityContext.getCurrentUser();
+
+        // Check if Affectation exists
+        Affectation affectation = affectationRepository.findById(affectationId)
+                .orElseThrow(() -> new DomainException(ErrorCode.RESOURCE_NOT_FOUND, "Affectation not found"));
+
+        // Centralized security check
+        validateAccess(affectation, currentUser.getEmail());
+
         return taskRepository.findByAffectationId(affectationId, pageable)
                 .map(this::mapToResponseDTO);
     }
@@ -69,28 +79,80 @@ public class TaskServiceImpl implements ITaskService {
     @Override
     @Transactional
     public TaskResponseDTO updateTaskStatus(Long taskId, boolean completed) {
+        Utilisateur currentUser = securityContext.getCurrentUser();
+
+        // Check if Task exists
         Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new EntityNotFoundException("Task not found"));
+                .orElseThrow(() -> new DomainException(ErrorCode.RESOURCE_NOT_FOUND, "Task not found"));
+
+        // Centralized security check (checks if user is in the affectation tied to this
+        // task)
+        validateAccess(task.getAffectation(), currentUser.getEmail());
+
+        // Specific Business Rule: ONLY students can update status
+        boolean isStudent = task.getAffectation().getGroupe().getMembres().stream()
+                .anyMatch(m -> m.getEmail().equals(currentUser.getEmail()));
+
+        if (!isStudent) {
+            throw new DomainException(ErrorCode.FORBIDDEN, "Only assigned students can mark tasks as completed.");
+        }
+
         task.setCompleted(completed);
-        return mapToResponseDTO(taskRepository.save(task));
+        Task savedTask = taskRepository.save(task);
+        TaskResponseDTO response = mapToResponseDTO(savedTask);
+
+        messagingTemplate.convertAndSend("/topic/affectation/" + task.getAffectation().getId() + "/tasks", response);
+        return response;
     }
 
     @Override
     @Transactional
     public void deleteTask(Long taskId) {
-        taskRepository.deleteById(taskId);
+        Utilisateur currentUser = securityContext.getCurrentUser();
+
+        // Check if Task exists
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new DomainException(ErrorCode.RESOURCE_NOT_FOUND, "Task not found"));
+
+        // Centralized security check
+        validateAccess(task.getAffectation(), currentUser.getEmail());
+
+        taskRepository.delete(task);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public double getInternshipProgress(Long affectationId) {
+        Utilisateur currentUser = securityContext.getCurrentUser();
+
+        // Check if Affectation exists
+        Affectation affectation = affectationRepository.findById(affectationId)
+                .orElseThrow(() -> new DomainException(ErrorCode.RESOURCE_NOT_FOUND, "Affectation not found"));
+
+        // Centralized security check
+        validateAccess(affectation, currentUser.getEmail());
+
         long total = taskRepository.countByAffectationId(affectationId);
         if (total == 0)
             return 0.0;
+
         long completed = taskRepository.countByAffectationIdAndCompletedTrue(affectationId);
         return (double) completed / total * 100;
     }
 
-    // Manual Mapper (Clean Code - no need for extra libraries yet)
+    /**
+     * Centralized security check
+     */
+    private void validateAccess(Affectation aff, String email) {
+        boolean isTeacher = aff.getEncadrant().getEmail().equals(email);
+        boolean isStudent = aff.getGroupe().getMembres().stream()
+                .anyMatch(m -> m.getEmail().equals(email));
+
+        if (!isTeacher && !isStudent) {
+            throw new DomainException(ErrorCode.FORBIDDEN, "Access denied. You are not assigned to this internship.");
+        }
+    }
+
     private TaskResponseDTO mapToResponseDTO(Task task) {
         return TaskResponseDTO.builder()
                 .id(task.getId())
@@ -99,6 +161,7 @@ public class TaskServiceImpl implements ITaskService {
                 .deadline(task.getDeadline())
                 .priorite(task.getPriorite())
                 .creePar(task.getCreePar())
+                .creatorName(task.getCreatorName())
                 .createdAt(task.getCreatedAt())
                 .affectationId(task.getAffectation().getId())
                 .build();

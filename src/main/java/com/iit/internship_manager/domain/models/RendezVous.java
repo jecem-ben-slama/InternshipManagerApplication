@@ -1,30 +1,36 @@
 package com.iit.internship_manager.domain.models;
 
+import com.iit.internship_manager.domain.enums.CreatorRole;
+import com.iit.internship_manager.domain.enums.MeetingStatus;
+
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "rendez_vous")
 @Getter
 @Setter
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 public class RendezVous {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
     private LocalDateTime dateHeure;
-
     private String lieu;
+    private String objet;
+    private String creatorName;
 
+    @Enumerated(EnumType.STRING)
+    private CreatorRole creePar;
+
+    @Enumerated(EnumType.STRING)
     @Builder.Default
-    private boolean estConfirme = false;
+    private MeetingStatus status = MeetingStatus.PENDING;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "affectation_id", nullable = false)
+    @JoinColumn(name = "affectation_id")
     private Affectation affectation;
 }

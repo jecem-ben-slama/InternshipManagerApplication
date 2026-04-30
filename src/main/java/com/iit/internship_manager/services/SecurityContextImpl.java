@@ -1,6 +1,6 @@
 package com.iit.internship_manager.services;
-
-import com.iit.internship_manager.domain.exceptions.UnauthorizedActionException;
+import com.iit.internship_manager.domain.enums.ErrorCode;
+import com.iit.internship_manager.domain.exceptions.DomainException;
 import com.iit.internship_manager.domain.models.Enseignant;
 import com.iit.internship_manager.domain.models.Utilisateur;
 import com.iit.internship_manager.repositories.UserRepository;
@@ -19,7 +19,7 @@ public class SecurityContextImpl implements ISecurityContext {
     public Utilisateur getCurrentUser() {
         String email = getCurrentUserEmail();
         return userRepository.findByEmail(email)
-                .orElseThrow(() -> new UnauthorizedActionException("Utilisateur introuvable dans la base de données."));
+                .orElseThrow(() -> new DomainException(ErrorCode.RESOURCE_NOT_FOUND, "Utilisateur introuvable dans la base de données."));
     }
 
     @Override

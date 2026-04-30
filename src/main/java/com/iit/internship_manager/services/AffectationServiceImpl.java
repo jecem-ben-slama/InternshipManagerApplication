@@ -2,9 +2,10 @@ package com.iit.internship_manager.services;
 
 import com.iit.internship_manager.domain.models.*;
 import com.iit.internship_manager.domain.enums.DemandeStatus;
+import com.iit.internship_manager.domain.enums.ErrorCode;
 import com.iit.internship_manager.domain.enums.SujetStatus;
+import com.iit.internship_manager.domain.exceptions.DomainException;
 import com.iit.internship_manager.domain.exceptions.ResourceNotFoundException;
-import com.iit.internship_manager.domain.exceptions.UnauthorizedActionException;
 import com.iit.internship_manager.repositories.AcademicYearRepository;
 import com.iit.internship_manager.repositories.AffectationRepository;
 import com.iit.internship_manager.repositories.CandidatureRepository;
@@ -64,7 +65,7 @@ public class AffectationServiceImpl implements IAffectationService {
                     affectations.size());
         }
 
-        throw new UnauthorizedActionException("Rôle non reconnu.");
+        throw new DomainException(ErrorCode.FORBIDDEN, "Rôle non reconnu.");
     }
 
     @Override
@@ -77,7 +78,7 @@ public class AffectationServiceImpl implements IAffectationService {
         // 2. Identify the current user and their department
         Utilisateur currentUser = securityContext.getCurrentUser();
         if (!(currentUser instanceof Enseignant teacher)) {
-            throw new UnauthorizedActionException("Accès restreint aux enseignants pour consulter les archives.");
+            throw new DomainException(ErrorCode.FORBIDDEN, "Accès restreint aux enseignants pour consulter les archives.");
         }
 
         // 3. Query the repository for affectations in that year and department
@@ -104,7 +105,7 @@ public class AffectationServiceImpl implements IAffectationService {
                     currentYear);
             affectationsPage = new PageImpl<>(list, pageable, list.size());
         } else {
-            throw new UnauthorizedActionException("Accès non autorisé.");
+            throw new DomainException(ErrorCode.FORBIDDEN, "Accès non autorisé.");
         }
 
         return affectationsPage.map(this::mapToWorkloadDTO);
@@ -115,7 +116,7 @@ public class AffectationServiceImpl implements IAffectationService {
     public Page<Etudiant> getUnassignedStudents(Pageable pageable) {
         Utilisateur currentUser = securityContext.getCurrentUser();
         if (!securityContext.isResponsablePFE() || !(currentUser instanceof Enseignant resp)) {
-            throw new UnauthorizedActionException("Accès réservé au responsable.");
+            throw new DomainException(ErrorCode.FORBIDDEN, "Accès réservé au responsable.");
         }
 
         // This query must filter students who DON'T have an affectation in the CURRENT
@@ -131,7 +132,7 @@ public class AffectationServiceImpl implements IAffectationService {
         AcademicYear currentYear = currentYearProvider.getCurrent();
 
         if (!securityContext.isResponsablePFE() || !(currentUser instanceof Enseignant resp)) {
-            throw new UnauthorizedActionException("Accès réservé au responsable.");
+            throw new DomainException(ErrorCode.FORBIDDEN, "Accès réservé au responsable.");
         }
 
         return userRepository.findAllEnseignantsByDepartment(resp.getDepartment(), pageable)
@@ -241,7 +242,7 @@ public class AffectationServiceImpl implements IAffectationService {
         Utilisateur currentUser = securityContext.getCurrentUser();
         if (securityContext.isResponsablePFE() && currentUser instanceof Enseignant resp) {
             if (!affectation.getEncadrant().getDepartment().equals(resp.getDepartment())) {
-                throw new UnauthorizedActionException("Vous ne pouvez agir que sur votre département.");
+                throw new DomainException(ErrorCode.FORBIDDEN, "Vous ne pouvez agir que sur votre département.");
             }
         }
     }

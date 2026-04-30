@@ -16,9 +16,7 @@ public class TaskResponseDTO {
     private LocalDateTime deadline;
     private Priority priorite;
     private CreatorRole creePar;
+    private String creatorName;
     private LocalDateTime createdAt;
-
-    // We don't send the whole Affectation object to avoid infinite recursion
-    // Just the ID is enough for the frontend logic
     private Long affectationId;
 }

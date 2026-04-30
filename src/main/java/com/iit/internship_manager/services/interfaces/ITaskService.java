@@ -6,7 +6,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 public interface ITaskService {
-    TaskResponseDTO createTask(TaskRequest request, String currentUserEmail);
+    TaskResponseDTO createTask(TaskRequest request);
 
     Page<TaskResponseDTO> getTasksByAffectation(Long affectationId, Pageable pageable);
 

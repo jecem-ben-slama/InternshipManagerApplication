@@ -17,6 +17,23 @@ public class AffectationController {
         private final IAffectationService affectationService;
 
         /**
+         * Dedicated endpoint for the user's current active internship(s).
+         * For students: returns their specific project for the year.
+         * For teachers: returns the list of students they are currently supervising.
+         */
+        @GetMapping("/my-internship")
+        @PreAuthorize("hasAnyRole('ETUDIANT', 'ENSEIGNANT')")
+        public ResponseEntity<ApiResponse<Page<AffectationResponseDTO>>> getMyCurrentInternship(
+                        @RequestParam(defaultValue = "0") int page,
+                        @RequestParam(defaultValue = "10") int size) {
+
+                // We reuse the service logic which already filters by current year and user
+                // role
+                Page<AffectationResponseDTO> result = affectationService.getMyAffectations(PageRequest.of(page, size));
+
+                return ResponseEntity.ok(ApiResponse.success("Données de votre stage actuel récupérées.", result));
+        }
+        /**
          * Get active affectations for the CURRENT academic year.
          * Role-aware: students see their own, teachers see their encadrements,
          * responsablePFE sees the whole department.

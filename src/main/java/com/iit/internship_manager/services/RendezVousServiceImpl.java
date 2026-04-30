@@ -1,22 +1,24 @@
 package com.iit.internship_manager.services;
 
-import com.iit.internship_manager.domain.exceptions.UnauthorizedActionException;
+import com.iit.internship_manager.domain.enums.CreatorRole;
+import com.iit.internship_manager.domain.enums.ErrorCode;
+import com.iit.internship_manager.domain.enums.MeetingStatus;
+import com.iit.internship_manager.domain.exceptions.DomainException;
 import com.iit.internship_manager.domain.models.Affectation;
 import com.iit.internship_manager.domain.models.RendezVous;
+import com.iit.internship_manager.domain.models.Utilisateur;
 import com.iit.internship_manager.repositories.AffectationRepository;
 import com.iit.internship_manager.repositories.RendezVousRepository;
 import com.iit.internship_manager.services.interfaces.IRendezVousService;
+import com.iit.internship_manager.services.interfaces.ISecurityContext;
 import com.iit.internship_manager.web.dtos.RendezVousRequest;
 import com.iit.internship_manager.web.dtos.RendezVousResponseDTO;
-import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -25,109 +27,99 @@ public class RendezVousServiceImpl implements IRendezVousService {
     private final RendezVousRepository rendezVousRepository;
     private final AffectationRepository affectationRepository;
     private final SimpMessagingTemplate messagingTemplate;
+    private final ISecurityContext securityContext;
 
     @Override
     @Transactional
-    public RendezVousResponseDTO createMeeting(RendezVousRequest request, String currentUserEmail) {
-        // 1. Basic Date Validation
-        if (request.getDateHeure().isBefore(LocalDateTime.now())) {
-            throw new IllegalArgumentException("Cannot schedule a meeting in the past.");
+    public RendezVousResponseDTO createMeeting(RendezVousRequest request) {
+        Utilisateur currentUser = securityContext.getCurrentUser();
+        Affectation aff = affectationRepository.findById(request.getAffectationId())
+                .orElseThrow(() -> new DomainException(ErrorCode.RESOURCE_NOT_FOUND, "Affectation not found"));
+
+        validateAccess(aff, currentUser.getEmail());
+
+        CreatorRole role = aff.getEncadrant().getEmail().equals(currentUser.getEmail())
+                ? CreatorRole.ENSEIGNANT
+                : CreatorRole.ETUDIANT;
+
+        // Conflict check
+        if (rendezVousRepository.existsByTeacherEmailAndDateBetween(
+                aff.getEncadrant().getEmail(), request.getDateHeure().minusMinutes(59),
+                request.getDateHeure().plusMinutes(59))) {
+            throw new DomainException(ErrorCode.CONFLICT, "Teacher is already booked at this time.");
         }
 
-        Affectation affectation = affectationRepository.findById(request.getAffectationId())
-                .orElseThrow(() -> new EntityNotFoundException("Affectation not found"));
-
-        // 2. SECURITY: Check if user is part of the affectation (Teacher or Student)
-        boolean isTeacher = affectation.getEncadrant().getEmail().equals(currentUserEmail);
-        boolean isStudent = affectation.getGroupe().getMembres().stream()
-                .anyMatch(m -> m.getEmail().equals(currentUserEmail));
-
-        if (!isTeacher && !isStudent) {
-            throw new UnauthorizedActionException("You are not part of this internship.");
-        }
-
-        // 3. CONFLICT CHECK: Check if teacher has a meeting ±1 hour
-        // Start check: 59 mins before | End check: 59 mins after
-        LocalDateTime bufferStart = request.getDateHeure().minusMinutes(59);
-        LocalDateTime bufferEnd = request.getDateHeure().plusMinutes(59);
-
-        boolean hasConflict = rendezVousRepository.existsByTeacherEmailAndDateBetween(
-                affectation.getEncadrant().getEmail(),
-                bufferStart,
-                bufferEnd);
-
-        if (hasConflict) {
-            throw new IllegalStateException("The teacher already has a meeting scheduled within this hour.");
-        }
-
-        // 4. Build and Save
         RendezVous rdv = RendezVous.builder()
-                .dateHeure(request.getDateHeure())
-                .lieu(request.getLieu())
-                .affectation(affectation)
-                .estConfirme(isTeacher) // Auto-confirm if teacher creates it
+                .dateHeure(request.getDateHeure()).lieu(request.getLieu()).objet(request.getObjet())
+                .affectation(aff).creePar(role).creatorName(currentUser.getNom() + " " + currentUser.getPrenom())
+                .status(role == CreatorRole.ENSEIGNANT ? MeetingStatus.CONFIRMED : MeetingStatus.PENDING)
                 .build();
 
-        RendezVous saved = rendezVousRepository.save(rdv);
-        RendezVousResponseDTO response = mapToDTO(saved);
-
-        // 5. WebSocket Broadcast
-        messagingTemplate.convertAndSend("/topic/affectation/" + affectation.getId() + "/meetings", response);
-
-        return response;
+        return saveAndBroadcast(rdv);
     }
 
     @Override
     @Transactional
-    public RendezVousResponseDTO confirmMeeting(Long meetingId, String currentUserEmail) {
+    public RendezVousResponseDTO updateStatus(Long meetingId, MeetingStatus newStatus) {
+        Utilisateur currentUser = securityContext.getCurrentUser();
         RendezVous rdv = rendezVousRepository.findById(meetingId)
-                .orElseThrow(() -> new EntityNotFoundException("Meeting not found"));
+                .orElseThrow(() -> new DomainException(ErrorCode.RESOURCE_NOT_FOUND, "Meeting not found"));
 
-        // Security: Only a student in the group can confirm
-        boolean isStudent = rdv.getAffectation().getGroupe().getMembres().stream()
-                .anyMatch(m -> m.getEmail().equals(currentUserEmail));
+        validateAccess(rdv.getAffectation(), currentUser.getEmail());
 
-        if (!isStudent) {
-            throw new UnauthorizedActionException("Only assigned students can confirm this meeting.");
+        // Business Logic: Confirmed meetings can't be refused, only cancelled
+        if (rdv.getStatus() == MeetingStatus.CONFIRMED && newStatus == MeetingStatus.REFUSED) {
+            throw new DomainException(ErrorCode.CONFLICT, "Confirmed meetings must be cancelled, not refused.");
         }
 
-        rdv.setEstConfirme(true);
-        RendezVous saved = rendezVousRepository.save(rdv);
-        RendezVousResponseDTO response = mapToDTO(saved);
+        rdv.setStatus(newStatus);
+        return saveAndBroadcast(rdv);
+    }
 
-        // Notify teacher that student confirmed
-        messagingTemplate.convertAndSend("/topic/affectation/" + rdv.getAffectation().getId() + "/meetings", response);
+    @Override
+    @Transactional
+    public void deleteOrCancel(Long meetingId) {
+        Utilisateur currentUser = securityContext.getCurrentUser();
+        RendezVous rdv = rendezVousRepository.findById(meetingId)
+                .orElseThrow(() -> new DomainException(ErrorCode.RESOURCE_NOT_FOUND, "Meeting not found"));
 
-        return response;
+        validateAccess(rdv.getAffectation(), currentUser.getEmail());
+
+        if (rdv.getStatus() == MeetingStatus.CONFIRMED) {
+            rdv.setStatus(MeetingStatus.CANCELLED);
+            saveAndBroadcast(rdv);
+        } else {
+            rendezVousRepository.delete(rdv);
+            messagingTemplate.convertAndSend("/topic/affectation/" + rdv.getAffectation().getId() + "/meetings/delete",
+                    meetingId);
+        }
     }
 
     @Override
     public Page<RendezVousResponseDTO> getAllMeetingsByAffectation(Long affectationId, Pageable pageable) {
-        return rendezVousRepository.findByAffectationId(affectationId, pageable)
-                .map(this::mapToDTO);
+        validateAccess(affectationRepository.findById(affectationId).orElseThrow(),
+                securityContext.getCurrentUser().getEmail());
+        return rendezVousRepository.findByAffectationId(affectationId, pageable).map(this::mapToDTO);
     }
 
-    @Override
-    @Transactional
-    public void cancelMeeting(Long meetingId, String currentUserEmail) {
-        RendezVous rdv = rendezVousRepository.findById(meetingId)
-                .orElseThrow(() -> new EntityNotFoundException("Meeting not found"));
+    private void validateAccess(Affectation aff, String email) {
+        boolean authorized = aff.getEncadrant().getEmail().equals(email) ||
+                aff.getGroupe().getMembres().stream().anyMatch(m -> m.getEmail().equals(email));
+        if (!authorized)
+            throw new DomainException(ErrorCode.FORBIDDEN, "Unauthorized access.");
+    }
 
-        // Ensure user is part of the affectation before deleting
-        if (!rdv.getAffectation().getEncadrant().getEmail().equals(currentUserEmail)) {
-            throw new UnauthorizedActionException("Unauthorized to cancel this meeting.");
-        }
-
-        rendezVousRepository.delete(rdv);
+    private RendezVousResponseDTO saveAndBroadcast(RendezVous rdv) {
+        RendezVous saved = rendezVousRepository.save(rdv);
+        RendezVousResponseDTO dto = mapToDTO(saved);
+        messagingTemplate.convertAndSend("/topic/affectation/" + rdv.getAffectation().getId() + "/meetings", dto);
+        return dto;
     }
 
     private RendezVousResponseDTO mapToDTO(RendezVous rdv) {
         return RendezVousResponseDTO.builder()
-                .id(rdv.getId())
-                .dateHeure(rdv.getDateHeure())
-                .lieu(rdv.getLieu())
-                .estConfirme(rdv.isEstConfirme())
-                .affectationId(rdv.getAffectation().getId())
-                .build();
+                .id(rdv.getId()).dateHeure(rdv.getDateHeure()).lieu(rdv.getLieu()).objet(rdv.getObjet())
+                .creePar(rdv.getCreePar()).creatorName(rdv.getCreatorName())
+                .status(rdv.getStatus()).affectationId(rdv.getAffectation().getId()).build();
     }
 }

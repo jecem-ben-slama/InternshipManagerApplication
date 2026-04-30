@@ -1,7 +1,8 @@
 package com.iit.internship_manager.services;
 
+import com.iit.internship_manager.domain.enums.ErrorCode;
+import com.iit.internship_manager.domain.exceptions.DomainException;
 import com.iit.internship_manager.domain.exceptions.ResourceNotFoundException;
-import com.iit.internship_manager.domain.exceptions.UnauthorizedActionException;
 import com.iit.internship_manager.domain.models.Etudiant;
 import com.iit.internship_manager.domain.models.Groupe;
 import com.iit.internship_manager.repositories.GroupeRepository;
@@ -32,7 +33,7 @@ public class GroupeServiceImpl implements IGroupeService {
         if (partnerIds != null && !partnerIds.isEmpty()) {
             // 2. Prevent self-addition (Creator cannot be their own partner)
             if (partnerIds.contains(creator.getId())) {
-                throw new UnauthorizedActionException("Vous ne pouvez pas vous ajouter vous-même comme partenaire.");
+                throw new DomainException(ErrorCode.FORBIDDEN, "Vous ne pouvez pas vous ajouter vous-même comme partenaire.");
             }
 
             // 3. Fetch partners and ensure they are actually Students (Type Safety)

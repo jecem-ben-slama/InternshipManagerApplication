@@ -1,11 +1,11 @@
 package com.iit.internship_manager.services.registration;
 
 import com.iit.internship_manager.domain.enums.*;
+import com.iit.internship_manager.domain.exceptions.DomainException;
 import com.iit.internship_manager.domain.models.AdminIT;
 import com.iit.internship_manager.repositories.UserRepository;
 import com.iit.internship_manager.web.dtos.*;
 import com.iit.internship_manager.web.dtos.registration.AdminRegisterRequest;
-import com.iit.internship_manager.domain.exceptions.EmailAlreadyUsedException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -28,7 +28,7 @@ public class AdminITRegistrationStrategy
     @Transactional
     public UserResponseDTO register(AdminRegisterRequest req) {
         if (userRepository.existsByEmail(req.getEmail())) {
-            throw new EmailAlreadyUsedException(req.getEmail());
+            throw new DomainException(ErrorCode.CONFLICT, "Email already used.");
         }
 
         AdminIT admin = new AdminIT();

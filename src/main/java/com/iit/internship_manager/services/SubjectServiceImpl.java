@@ -78,7 +78,7 @@ public class SubjectServiceImpl implements ISubjectService {
                 .orElseThrow(() -> new ResourceNotFoundException("Sujet", id));
 
         if (sujet.getStatut() == SujetStatus.TAKEN) {
-            throw new UnauthorizedActionException("Ce sujet est déjà assigné et ne peut plus être modifié.");
+            throw new DomainException(ErrorCode.FORBIDDEN, "Ce sujet est déjà assigné et ne peut plus être modifié.");
         }
 
         String email = securityContext.getCurrentUserEmail();
@@ -86,7 +86,7 @@ public class SubjectServiceImpl implements ISubjectService {
                 (sujet.getProposant() != null && sujet.getProposant().getEmail().equals(email));
 
         if (!isOwner && !securityContext.hasRole("ADMIN_IT")) {
-            throw new UnauthorizedActionException("Vous n'êtes pas autorisé à modifier ce sujet.");
+            throw new DomainException(ErrorCode.FORBIDDEN, "Vous n'êtes pas autorisé à modifier ce sujet.");
         }
 
         mapCommonFields(sujet, dto);
@@ -99,7 +99,7 @@ public class SubjectServiceImpl implements ISubjectService {
         Utilisateur user = securityContext.getCurrentUser();
 
         if (!(user instanceof Enseignant e) || !e.isResponsablePFE()) {
-            throw new UnauthorizedActionException("Action réservée au Responsable PFE.");
+            throw new DomainException(ErrorCode.FORBIDDEN, "Action réservée au Responsable PFE.");
         }
 
         Sujet sujet = subjectRepository.findById(id)
@@ -116,11 +116,11 @@ public class SubjectServiceImpl implements ISubjectService {
                 .orElseThrow(() -> new ResourceNotFoundException("Sujet", id));
 
         if (sujet.getStatut() == SujetStatus.TAKEN) {
-            throw new UnauthorizedActionException("Impossible de supprimer un sujet déjà assigné.");
+            throw new DomainException(ErrorCode.FORBIDDEN, "Impossible de supprimer un sujet déjà assigné.");
         }
 
         if (candidatureRepository.existsBySujetId(id)) {
-            throw new UnauthorizedActionException("Ce sujet a des candidatures actives.");
+            throw new DomainException(ErrorCode.FORBIDDEN, "Ce sujet a des candidatures actives.");
         }
 
         subjectRepository.delete(sujet);
@@ -131,7 +131,7 @@ public class SubjectServiceImpl implements ISubjectService {
     public SujetResponseDTO teacherProposeSujet(SujetRequest dto) {
         Utilisateur currentUser = securityContext.getCurrentUser();
         if (!(currentUser instanceof Enseignant teacher)) {
-            throw new UnauthorizedActionException("Seuls les enseignants peuvent proposer des sujets.");
+            throw new DomainException(ErrorCode.FORBIDDEN, "Seuls les enseignants peuvent proposer des sujets.");
         }
 
         Sujet sujet = new Sujet();
@@ -148,7 +148,7 @@ public class SubjectServiceImpl implements ISubjectService {
     public SujetResponseDTO studentProposeSujet(Long teacherId, SujetRequest dto) {
         Utilisateur currentUser = securityContext.getCurrentUser();
         if (!(currentUser instanceof Etudiant student)) {
-            throw new UnauthorizedActionException("Seuls les étudiants peuvent proposer des sujets.");
+            throw new DomainException(ErrorCode.FORBIDDEN, "Seuls les étudiants peuvent proposer des sujets.");
         }
 
         validateMembersAvailability(student, dto.getPartnerIds());
@@ -189,8 +189,7 @@ public class SubjectServiceImpl implements ISubjectService {
 
         AcademicYear currentYear = currentYearProvider.getCurrent();
         if (affectationRepository.existsByGroupeMembresIdInAndAnneeUniversitaire(allMemberIds, currentYear)) {
-            throw new UnauthorizedActionException(
-                    "Un ou plusieurs membres du groupe sont déjà affectés pour cette année.");
+            throw new DomainException(ErrorCode.FORBIDDEN, "Un ou plusieurs membres du groupe sont déjà affectés pour cette année.");
         }
     }
 

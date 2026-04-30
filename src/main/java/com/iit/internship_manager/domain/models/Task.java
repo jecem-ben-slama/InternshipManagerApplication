@@ -32,7 +32,10 @@ public class Task {
     private Priority priorite;
 
     @Enumerated(EnumType.STRING)
-    private CreatorRole creePar;
+    private CreatorRole creePar; // ENSEIGNANT or ETUDIANT
+
+    @Column(name = "creator_name")
+    private String creatorName; // Full name: First + Last
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "affectation_id", nullable = false)

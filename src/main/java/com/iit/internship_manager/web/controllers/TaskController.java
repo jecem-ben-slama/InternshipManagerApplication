@@ -11,8 +11,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.security.Principal;
-
 @RestController
 @RequestMapping("/api/tasks")
 @RequiredArgsConstructor
@@ -21,11 +19,8 @@ public class TaskController {
     private final ITaskService taskService;
 
     @PostMapping
-    public ResponseEntity<TaskResponseDTO> createTask(
-            @RequestBody TaskRequest request,
-            Principal principal) {
-        // principal.getName() returns the email from your JWT/Authentication
-        return new ResponseEntity<>(taskService.createTask(request, principal.getName()), HttpStatus.CREATED);
+    public ResponseEntity<TaskResponseDTO> createTask(@RequestBody TaskRequest request) {
+        return new ResponseEntity<>(taskService.createTask(request), HttpStatus.CREATED);
     }
 
     @GetMapping("/affectation/{affectationId}")

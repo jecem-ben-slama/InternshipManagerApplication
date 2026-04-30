@@ -39,7 +39,7 @@ public class CandidatureServiceImpl implements ICandidatureService {
         // 1. State Guard
         if (selected.getStatut() != DemandeStatus.PENDING &&
                 selected.getStatut() != DemandeStatus.NEED_CLARIFICATION) {
-            throw new InvalidCandidatureStateException("Cette candidature a déjà été traitée.");
+            throw new DomainException(ErrorCode.BUSINESS_RULE_ERROR, "Cette candidature a déjà été traitée.");
         }
 
         // 2. Race condition guard: verify all members are still free for the current
@@ -48,13 +48,13 @@ public class CandidatureServiceImpl implements ICandidatureService {
         if (affectationRepository.existsByGroupeMembresIdInAndAnneeUniversitaire(memberIds, currentYear)) {
             selected.setStatut(DemandeStatus.REJECTED_BY_SYSTEM);
             candidatureRepository.save(selected);
-            throw new BadRequestException("Un ou plusieurs membres du groupe sont déjà affectés pour cette année.");
+            throw new DomainException(ErrorCode.BUSINESS_RULE_ERROR, "Un ou plusieurs membres du groupe sont déjà affectés pour cette année.");
         }
 
         // 3. Quota Check (year-aware)
         long currentCount = affectationRepository.countByEncadrantAndAnneeUniversitaire(teacher, currentYear);
         if (currentCount >= teacher.getQuotaAnnuel()) {
-            throw new QuotaExceededException();
+            throw new DomainException(ErrorCode.BUSINESS_RULE_ERROR, "Le quota annuel de l'enseignant a été dépassé.");
         }
 
         // 4. Update candidature status
@@ -92,8 +92,7 @@ public class CandidatureServiceImpl implements ICandidatureService {
 
         Utilisateur currentUser = securityContext.getCurrentUser();
         if (!(currentUser instanceof Enseignant teacher)) {
-            throw new UnauthorizedActionException(
-                    "Seuls les enseignants peuvent consulter les archives des candidatures.");
+            throw new DomainException(ErrorCode.FORBIDDEN, "Seuls les enseignants peuvent consulter les archives des candidatures.");
         }
 
         Pageable pageable = PageRequest.of(page, size);
@@ -108,7 +107,7 @@ public class CandidatureServiceImpl implements ICandidatureService {
     public void postuler(Long sujetId, List<Long> partnerIds) {
         Utilisateur currentUser = securityContext.getCurrentUser();
         if (!(currentUser instanceof Etudiant student)) {
-            throw new UnauthorizedActionException("Seuls les étudiants peuvent postuler.");
+            throw new DomainException(ErrorCode.FORBIDDEN, "Seuls les étudiants peuvent postuler.");
         }
 
         AcademicYear currentYear = currentYearProvider.getCurrent();
@@ -117,28 +116,28 @@ public class CandidatureServiceImpl implements ICandidatureService {
 
         // Department Guard
         if (!student.getDepartment().equals(sujet.getEnseignant().getDepartment())) {
-            throw new UnauthorizedActionException("Vous ne pouvez postuler qu'aux sujets de votre département.");
+            throw new DomainException(ErrorCode.FORBIDDEN, "Vous ne pouvez postuler qu'aux sujets de votre département.");
         }
 
         // Availability Check
         if (sujet.getStatut() != SujetStatus.AVAILABLE && sujet.getStatut() != SujetStatus.PENDING) {
-            throw new SujetIndisponibleException();
+            throw new DomainException(ErrorCode.BUSINESS_RULE_ERROR, "Ce sujet n'est plus disponible pour les candidatures.");
         }
 
         // Reserved subject check
         if (sujet.getProposant() != null && !sujet.getProposant().getId().equals(student.getId())) {
-            throw new UnauthorizedActionException("Ce sujet est réservé.");
+            throw new DomainException(ErrorCode.FORBIDDEN, "Ce sujet est réservé.");
         }
 
         Groupe group = groupeService.getOrCreateGroup(student, partnerIds);
         List<Long> memberIds = group.getMembres().stream().map(Etudiant::getId).toList();
 
         if (affectationRepository.existsByGroupeMembresIdInAndAnneeUniversitaire(memberIds, currentYear)) {
-            throw new BadRequestException("Un membre est déjà affecté pour l'année " + currentYear.getId());
+            throw new DomainException(ErrorCode.BUSINESS_RULE_ERROR, "Un membre est déjà affecté pour l'année " + currentYear.getId());
         }
 
         if (candidatureRepository.existsByGroupeIdAndSujetId(group.getId(), sujetId)) {
-            throw new DuplicateCandidatureException();
+            throw new DomainException(ErrorCode.BUSINESS_RULE_ERROR, "Une candidature existe déjà pour ce groupe et ce sujet.");
         }
 
         Candidature candidature = new Candidature();
@@ -199,9 +198,9 @@ public class CandidatureServiceImpl implements ICandidatureService {
         Candidature candidature = candidatureRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Candidature", id));
         if (!isMember(candidature))
-            throw new UnauthorizedActionException("Accès non autorisé.");
+            throw new DomainException(ErrorCode.FORBIDDEN, "Accès non autorisé.");
         if (candidature.getStatut() != DemandeStatus.PENDING)
-            throw new InvalidCandidatureStateException("Déjà traitée.");
+            throw new DomainException(ErrorCode.BUSINESS_RULE_ERROR, "Déjà traitée.");
         candidatureRepository.delete(candidature);
     }
 
@@ -210,7 +209,7 @@ public class CandidatureServiceImpl implements ICandidatureService {
     private void verifyCandidatureIsModifiable(Candidature c) {
         if (c.getStatut() == DemandeStatus.ACCEPTED_BY_TEACHER ||
                 c.getStatut() == DemandeStatus.VALIDATED_BY_RESPONSABLE) {
-            throw new InvalidCandidatureStateException("Impossible de modifier une candidature acceptée.");
+            throw new DomainException(ErrorCode.BUSINESS_RULE_ERROR, "Impossible de modifier une candidature acceptée.");
         }
     }
 
@@ -223,7 +222,7 @@ public class CandidatureServiceImpl implements ICandidatureService {
         Candidature c = candidatureRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Candidature", id));
         if (!c.getSujet().getEnseignant().getId().equals(securityContext.getCurrentUserId())) {
-            throw new UnauthorizedActionException("Non autorisé.");
+            throw new DomainException(ErrorCode.FORBIDDEN, "Non autorisé.");
         }
         return c;
     }

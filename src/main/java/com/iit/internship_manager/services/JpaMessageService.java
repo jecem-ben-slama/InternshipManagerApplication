@@ -1,7 +1,8 @@
 package com.iit.internship_manager.services;
 
+import com.iit.internship_manager.domain.enums.ErrorCode;
+import com.iit.internship_manager.domain.exceptions.DomainException;
 import com.iit.internship_manager.domain.exceptions.ResourceNotFoundException;
-import com.iit.internship_manager.domain.exceptions.UnauthorizedActionException;
 import com.iit.internship_manager.domain.models.*;
 import com.iit.internship_manager.repositories.CandidatureRepository;
 import com.iit.internship_manager.repositories.MessageRepository;
@@ -76,7 +77,7 @@ public class JpaMessageService implements IMessageService {
                 .orElseThrow(() -> new ResourceNotFoundException("Message", messageId));
 
         if (!message.getSender().getId().equals(securityContext.getCurrentUserId())) {
-            throw new UnauthorizedActionException("Vous ne pouvez supprimer que vos propres messages.");
+            throw new DomainException(ErrorCode.FORBIDDEN, "Vous ne pouvez supprimer que vos propres messages.");
         }
 
         messageRepository.delete(message);
@@ -110,7 +111,7 @@ public class JpaMessageService implements IMessageService {
         }
 
         if (!isTeacher && !isMember) {
-            throw new UnauthorizedActionException("Accès refusé : vous ne participez pas à cette discussion.");
+            throw new DomainException(ErrorCode.FORBIDDEN, "Accès refusé : vous ne participez pas à cette discussion.");
         }
     }
     
