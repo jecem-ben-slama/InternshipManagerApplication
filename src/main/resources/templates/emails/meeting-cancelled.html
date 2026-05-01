@@ -2,85 +2,158 @@
 <html xmlns:th="http://www.thymeleaf.org">
 
 <head>
+    <meta charset="UTF-8">
     <style>
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.6;
-            color: #333;
+            font-family: 'Times New Roman', Times, serif;
+            line-height: 1.8;
+            color: #2c3e50;
             background-color: #f9f9f9;
             margin: 0;
-            padding: 20px;
+            padding: 0;
         }
 
-        .container {
-            max-width: 600px;
+        .email-wrapper {
+            background-color: #f4f4f4;
+            padding: 50px 20px;
+        }
+
+        .email-content {
+            max-width: 650px;
             margin: 0 auto;
-            padding: 30px;
-            background: #ffffff;
-            border: 1px solid #e0e0e0;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            background-color: #ffffff;
+            /* Using a deep administrative red for cancellations */
+            border-top: 6px solid #b22222;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+            padding: 60px 50px;
         }
 
-        .header {
-            color: #d32f2f;
-            /* Darker red for professional tone */
-            border-bottom: 2px solid #ffcdd2;
-            padding-bottom: 15px;
-            margin-top: 0;
+        .institution-header {
+            text-align: center;
+            margin-bottom: 40px;
+            border-bottom: 1px solid #eeeeee;
+            padding-bottom: 20px;
+        }
+
+        .institution-name {
+            font-size: 20px;
+            font-weight: bold;
+            color: #b22222;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .subject-line {
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 10px;
+            color: #34495e;
+        }
+
+        .formal-greeting {
+            font-size: 16px;
+            margin-bottom: 25px;
+        }
+
+        .main-body {
+            font-size: 16px;
+            text-align: justify;
+        }
+
+        .details-table {
+            width: 100%;
+            margin: 30px 0;
+            border-collapse: collapse;
+            background-color: #fffcfc;
+        }
+
+        .details-table td {
+            padding: 15px;
+            border: 1px solid #e1e1e1;
+        }
+
+        .label {
+            font-weight: bold;
+            width: 35%;
+            color: #b22222;
+            background-color: #fff8f8;
+        }
+
+        .status-badge {
+            color: #b22222;
+            font-weight: bold;
             text-transform: uppercase;
             letter-spacing: 1px;
-            font-size: 22px;
         }
 
-        .details {
-            background: #fff8f8;
-            padding: 20px;
-            border-left: 4px solid #d32f2f;
-            border-radius: 4px;
-            margin: 25px 0;
-        }
-
-        .details p {
-            margin: 8px 0;
+        .signature {
+            margin-top: 40px;
+            border-top: 1px solid #eeeeee;
+            padding-top: 20px;
         }
 
         .footer-note {
-            font-size: 0.9em;
-            color: #666;
+            font-size: 12px;
+            color: #95a5a6;
+            text-align: center;
+            margin-top: 30px;
             font-style: italic;
-            border-top: 1px solid #eee;
-            padding-top: 15px;
-        }
-
-        .highlight {
-            color: #d32f2f;
-            font-weight: bold;
         }
     </style>
 </head>
 
 <body>
-    <div class="container">
-        <h2 class="header">Meeting Cancellation Notice</h2>
+    <div class="email-wrapper">
+        <div class="email-content">
+            <div class="institution-header">
+                <div class="institution-name">International Institute of Technology</div>
+                <div class="subject-line">Notification of Meeting Cancellation</div>
+            </div>
 
-        <p>Hello,</p>
+            <div class="formal-greeting">
+                Dear Participant,
+            </div>
 
-        <p>Please be advised that the following meeting has been <span class="highlight">cancelled</span> by
-            <span th:text="${creator}">[User Name]</span>.
-        </p>
+            <div class="main-body">
+                Please be advised that the scheduled meeting regarding the Internship Management process has been <span
+                    class="status-badge">Cancelled</span>. The details of the retracted appointment are provided below
+                for your records:
+            </div>
 
-        <div class="details">
-            <p><strong>Subject:</strong> <span th:text="${objet}">[Meeting Subject]</span></p>
-            <p><strong>Date & Time:</strong> <span th:text="${date}">[Date]</span></p>
-            <p><strong>Location:</strong> <span th:text="${lieu}">[Location]</span></p>
+            <table class="details-table">
+                <tr>
+                    <td class="label">Cancelled By</td>
+                    <td th:text="${actorName}">[User Name]</td>
+                </tr>
+                <tr>
+                    <td class="label">Subject</td>
+                    <td th:text="${objet}">[Meeting Subject]</td>
+                </tr>
+                <tr>
+                    <td class="label">Original Schedule</td>
+                    <td th:text="${date}">[Date & Time]</td>
+                </tr>
+                <tr>
+                    <td class="label">Location</td>
+                    <td th:text="${lieu}">[Location]</td>
+                </tr>
+            </table>
+
+            <div class="main-body">
+                A digital cancellation file (ICS) is included with this transmission. Your calendar system should
+                automatically process this update and remove the time block from your schedule.
+            </div>
+
+            <div class="signature">
+                <strong>Administrative Office</strong><br>
+                Department of Computer Engineering<br>
+                IIT Sfax, Tunisia
+            </div>
         </div>
-
-        <p class="footer-note">
-            <strong>Note:</strong> A calendar cancellation file has been attached to this email.
-            Most calendar applications (Google, Outlook, Apple) will automatically remove this
-            event from your schedule upon receiving this notice.
-        </p>
+        <div class="footer-note">
+            &copy; 2026 International Institute of Technology. All rights reserved.<br>
+            This is an automated administrative notification.
+        </div>
     </div>
 </body>
 
