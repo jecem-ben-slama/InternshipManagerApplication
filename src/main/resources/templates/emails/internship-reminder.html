@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: 'Times New Roman', Times, serif;
+            line-height: 1.8;
+            color: #2c3e50;
+            background-color: #f9f9f9;
+            margin: 0;
+            padding: 0;
+        }
+
+        .email-wrapper {
+            background-color: #f4f4f4;
+            padding: 50px 20px;
+        }
+
+        .email-content {
+            max-width: 650px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            /* Amber/Gold for Warning/Urgency */
+            border-top: 6px solid #b8860b;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+            padding: 60px 50px;
+        }
+
+        .institution-header {
+            text-align: center;
+            margin-bottom: 40px;
+            border-bottom: 1px solid #eeeeee;
+            padding-bottom: 20px;
+        }
+
+        .institution-name {
+            font-size: 20px;
+            font-weight: bold;
+            color: #b8860b;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .subject-line {
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 10px;
+            color: #34495e;
+        }
+
+        .formal-greeting {
+            font-size: 16px;
+            margin-bottom: 25px;
+        }
+
+        .main-body {
+            font-size: 16px;
+            text-align: justify;
+        }
+
+        .warning-box {
+            background-color: #fffcf5;
+            border-left: 4px solid #b8860b;
+            padding: 20px;
+            margin: 25px 0;
+            font-style: italic;
+            color: #7d5a00;
+        }
+
+        .portal-action {
+            margin: 40px 0;
+            text-align: center;
+        }
+
+        .formal-btn {
+            background-color: #b8860b;
+            color: #ffffff !important;
+            padding: 15px 35px;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: bold;
+            border-radius: 2px;
+            text-transform: uppercase;
+            display: inline-block;
+        }
+
+        .signature {
+            margin-top: 40px;
+            border-top: 1px solid #eeeeee;
+            padding-top: 20px;
+        }
+
+        .footer-note {
+            font-size: 12px;
+            color: #95a5a6;
+            text-align: center;
+            margin-top: 30px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="email-wrapper">
+        <div class="email-content">
+            <div class="institution-header">
+                <div class="institution-name">International Institute of Technology</div>
+                <div class="subject-line">Urgent: Internship Status Requirement</div>
+            </div>
+
+            <div class="formal-greeting">
+                Dear Student,
+            </div>
+
+            <div class="main-body">
+                Our records indicate that you have not yet registered an active internship affectation for the current
+                academic period. We would like to remind you that securing an internship (PFE) is a <strong>mandatory
+                    requirement</strong> for the completion of your Computer Engineering degree.
+            </div>
+
+            <div class="warning-box">
+                Failure to finalize your internship assignment by the established deadline may result in academic delays
+                or complications with your graduation eligibility.
+            </div>
+
+            <div class="main-body">
+                Please proceed to the Internship Management System to explore available opportunities, submit your
+                proposals, or contact your department coordinator if you require guidance in your search.
+            </div>
+
+            <div class="portal-action">
+                <a href="https://portal.iit.tn/internships" class="formal-btn">Access Student Portal</a>
+            </div>
+
+            <div class="signature">
+                <strong>Internship Coordination Office</strong><br>
+                Department of Computer Engineering<br>
+                IIT Sfax, Tunisia
+            </div>
+        </div>
+        <div class="footer-note">
+            &copy; 2026 International Institute of Technology. All rights reserved.<br>
+            Official Academic Notice | IIT Sfax.
+        </div>
+    </div>
+</body>
+
+</html>
