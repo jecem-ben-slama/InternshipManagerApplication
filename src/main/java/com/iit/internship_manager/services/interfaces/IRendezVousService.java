@@ -13,5 +13,5 @@ public interface IRendezVousService {
 
     RendezVousResponseDTO updateStatus(Long meetingId, MeetingStatus newStatus);
 
-    void deleteOrCancel(Long meetingId);
+    void delete(Long meetingId);
 }

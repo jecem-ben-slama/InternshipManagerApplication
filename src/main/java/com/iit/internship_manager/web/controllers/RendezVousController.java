@@ -38,8 +38,8 @@ public class RendezVousController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> cancelOrDelete(@PathVariable Long id) {
-        rendezVousService.deleteOrCancel(id);
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        rendezVousService.delete(id);
         return ResponseEntity.noContent().build();
     }
 }

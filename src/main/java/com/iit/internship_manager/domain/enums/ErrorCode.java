@@ -9,6 +9,7 @@ public enum ErrorCode {
     BUSINESS_RULE_ERROR(HttpStatus.BAD_REQUEST, "BUSINESS_RULE_ERROR", "Erreur métier"),
     ACCOUNT_DEACTIVATED(HttpStatus.FORBIDDEN, "ACCOUNT_DEACTIVATED", "Compte désactivé"),
     CONFLICT(HttpStatus.CONFLICT, "CONFLICT", "Conflit de données"),
+    EMAIL_SENDING_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "EMAIL_SENDING_FAILED", "Échec de l'envoi de l'email"),
 
     // --- AUTH / SECURITY ---
     BAD_CREDENTIALS(HttpStatus.UNAUTHORIZED, "BAD_CREDENTIALS", "Authentification échouée"),

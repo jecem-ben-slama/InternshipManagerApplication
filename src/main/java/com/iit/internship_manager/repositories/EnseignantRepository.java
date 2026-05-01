@@ -9,10 +9,15 @@ import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface EnseignantRepository extends JpaRepository<Enseignant, Long> {
     boolean existsByEmail(String email);
     Optional<Enseignant> findByEmail(String email);
     Page<Enseignant> findByDepartmentAndActiveTrue(DepartmentType department, Pageable pageable);
+
+    @Query("SELECT e FROM Enseignant e WHERE e.responsablePFE = true AND e.department = :dept")
+    Optional<Enseignant> findResponsableByDepartment(@Param("dept") DepartmentType dept);
 
 }

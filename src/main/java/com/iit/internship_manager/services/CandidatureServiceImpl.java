@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.thymeleaf.context.Context;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -27,6 +28,8 @@ public class CandidatureServiceImpl implements ICandidatureService {
     private final AffectationRepository affectationRepository;
     private final CurrentYearProvider currentYearProvider;
     private final AcademicYearRepository academicYearRepository;
+    private final EnseignantRepository enseignantRepository;
+    private final IEmailService emailService;
 
     @Override
     @Transactional
@@ -48,7 +51,8 @@ public class CandidatureServiceImpl implements ICandidatureService {
         if (affectationRepository.existsByGroupeMembresIdInAndAnneeUniversitaire(memberIds, currentYear)) {
             selected.setStatut(DemandeStatus.REJECTED_BY_SYSTEM);
             candidatureRepository.save(selected);
-            throw new DomainException(ErrorCode.BUSINESS_RULE_ERROR, "Un ou plusieurs membres du groupe sont déjà affectés pour cette année.");
+            throw new DomainException(ErrorCode.BUSINESS_RULE_ERROR,
+                    "Un ou plusieurs membres du groupe sont déjà affectés pour cette année.");
         }
 
         // 3. Quota Check (year-aware)
@@ -60,7 +64,6 @@ public class CandidatureServiceImpl implements ICandidatureService {
         // 4. Update candidature status
         selected.setStatut(DemandeStatus.ACCEPTED_BY_TEACHER);
 
-       
         // 6. Auto-lock remaining subjects if teacher hits quota
         if ((currentCount + 1) >= teacher.getQuotaAnnuel()) {
             subjectRepository.markAllSubjectsAsTakenForTeacher(teacher.getId());
@@ -79,8 +82,48 @@ public class CandidatureServiceImpl implements ICandidatureService {
         subjectRepository.save(sujet);
         candidatureRepository.save(selected);
 
-        // 8. Cleanup: reject other pending applications from the same group
+        // 8. Notifications
+        notifyResponsablePFE(affectation);
+        notifyStudents(selected);
+
+        // 9. Cleanup: reject other pending applications from the same group
         rejectOtherApplicationsForGroup(selected);
+    }
+
+    private void notifyResponsablePFE(Affectation aff) {
+        // Find the specific responsable for the department of the teacher
+        enseignantRepository
+                .findResponsableByDepartment(aff.getEncadrant().getDepartment())
+                .ifPresent(responsable -> {
+                    Context context = new Context();
+                    context.setVariable("supervisorName",
+                            aff.getEncadrant().getNom() + " " + aff.getEncadrant().getPrenom());
+                    context.setVariable("groupName", aff.getGroupe().getNom());
+                    context.setVariable("sujet", aff.getSujet().getTitre());
+
+                    emailService.sendEmail(
+                            responsable.getEmail(),
+                            "New Affectation Created: " + aff.getSujet().getTitre(),
+                            "new-affectation",
+                            context,
+                            null);
+                });
+    }
+
+    private void notifyStudents(Candidature cand) {
+        Context context = new Context();
+        context.setVariable("sujet", cand.getSujet().getTitre());
+        context.setVariable("teacherName",
+                cand.getSujet().getEnseignant().getNom() + " " + cand.getSujet().getEnseignant().getPrenom());
+
+        cand.getGroupe().getMembres().forEach(student -> {
+            emailService.sendEmail(
+                    student.getEmail(),
+                    "Application Accepted!",
+                    "candidature-accepted",
+                    context,
+                    null);
+        });
     }
 
     @Override
@@ -92,11 +135,11 @@ public class CandidatureServiceImpl implements ICandidatureService {
 
         Utilisateur currentUser = securityContext.getCurrentUser();
         if (!(currentUser instanceof Enseignant teacher)) {
-            throw new DomainException(ErrorCode.FORBIDDEN, "Seuls les enseignants peuvent consulter les archives des candidatures.");
+            throw new DomainException(ErrorCode.FORBIDDEN,
+                    "Seuls les enseignants peuvent consulter les archives des candidatures.");
         }
 
         Pageable pageable = PageRequest.of(page, size);
-        // Uses the unified query that accepts a nullable status
         return candidatureRepository
                 .findByTeacherAndYearAndStatus(teacher.getId(), year, status, pageable)
                 .map(CandidatureResponseDTO::fromEntity);
@@ -114,17 +157,16 @@ public class CandidatureServiceImpl implements ICandidatureService {
         Sujet sujet = subjectRepository.findById(sujetId)
                 .orElseThrow(() -> new ResourceNotFoundException("Sujet", sujetId));
 
-        // Department Guard
         if (!student.getDepartment().equals(sujet.getEnseignant().getDepartment())) {
-            throw new DomainException(ErrorCode.FORBIDDEN, "Vous ne pouvez postuler qu'aux sujets de votre département.");
+            throw new DomainException(ErrorCode.FORBIDDEN,
+                    "Vous ne pouvez postuler qu'aux sujets de votre département.");
         }
 
-        // Availability Check
         if (sujet.getStatut() != SujetStatus.AVAILABLE && sujet.getStatut() != SujetStatus.PENDING) {
-            throw new DomainException(ErrorCode.BUSINESS_RULE_ERROR, "Ce sujet n'est plus disponible pour les candidatures.");
+            throw new DomainException(ErrorCode.BUSINESS_RULE_ERROR,
+                    "Ce sujet n'est plus disponible pour les candidatures.");
         }
 
-        // Reserved subject check
         if (sujet.getProposant() != null && !sujet.getProposant().getId().equals(student.getId())) {
             throw new DomainException(ErrorCode.FORBIDDEN, "Ce sujet est réservé.");
         }
@@ -133,11 +175,13 @@ public class CandidatureServiceImpl implements ICandidatureService {
         List<Long> memberIds = group.getMembres().stream().map(Etudiant::getId).toList();
 
         if (affectationRepository.existsByGroupeMembresIdInAndAnneeUniversitaire(memberIds, currentYear)) {
-            throw new DomainException(ErrorCode.BUSINESS_RULE_ERROR, "Un membre est déjà affecté pour l'année " + currentYear.getId());
+            throw new DomainException(ErrorCode.BUSINESS_RULE_ERROR,
+                    "Un membre est déjà affecté pour l'année " + currentYear.getId());
         }
 
         if (candidatureRepository.existsByGroupeIdAndSujetId(group.getId(), sujetId)) {
-            throw new DomainException(ErrorCode.BUSINESS_RULE_ERROR, "Une candidature existe déjà pour ce groupe et ce sujet.");
+            throw new DomainException(ErrorCode.BUSINESS_RULE_ERROR,
+                    "Une candidature existe déjà pour ce groupe et ce sujet.");
         }
 
         Candidature candidature = new Candidature();
@@ -163,7 +207,6 @@ public class CandidatureServiceImpl implements ICandidatureService {
                     : candidatureRepository.findByGroupeMembresIdAndAnneeUniversitaire(
                             user.getId(), currentYear, pageable);
         } else {
-            // Teacher view — uses the unified query with nullable status
             resultPage = candidatureRepository.findByTeacherAndYearAndStatus(
                     user.getId(), currentYear, status, pageable);
         }
@@ -209,7 +252,8 @@ public class CandidatureServiceImpl implements ICandidatureService {
     private void verifyCandidatureIsModifiable(Candidature c) {
         if (c.getStatut() == DemandeStatus.ACCEPTED_BY_TEACHER ||
                 c.getStatut() == DemandeStatus.VALIDATED_BY_RESPONSABLE) {
-            throw new DomainException(ErrorCode.BUSINESS_RULE_ERROR, "Impossible de modifier une candidature acceptée.");
+            throw new DomainException(ErrorCode.BUSINESS_RULE_ERROR,
+                    "Impossible de modifier une candidature acceptée.");
         }
     }
 
