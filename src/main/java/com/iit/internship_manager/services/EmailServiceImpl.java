@@ -1,11 +1,13 @@
 package com.iit.internship_manager.services;
 
 import com.iit.internship_manager.services.interfaces.IEmailService;
-import jakarta.mail.MessagingException;
+import jakarta.activation.DataHandler;
+import jakarta.mail.internet.MimeBodyPart;
 import jakarta.mail.internet.MimeMessage;
+import jakarta.mail.internet.MimeMultipart;
+import jakarta.mail.util.ByteArrayDataSource;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
@@ -23,37 +25,50 @@ public class EmailServiceImpl implements IEmailService {
 
     @Override
     public void sendEmail(String to, String subject, String templateName, Context context, byte[] attachment) {
-        log.info("[{}] Processing '{}' email for {}",
-                Thread.currentThread().getName(), templateName, to);
+        log.info("Processing '{}' email for {}", templateName, to);
 
         try {
-            String html = templateEngine.process(TEMPLATE_PREFIX + templateName, context);
+            String htmlContent = templateEngine.process(TEMPLATE_PREFIX + templateName, context);
             MimeMessage message = mailSender.createMimeMessage();
+            
+            // 1. Set standard headers to help mail clients recognize calendar actions
+            message.addHeader("Content-Class", "urn:content-classes:calendarmessage");
+            message.addHeader("Description", subject);
 
-            // Boolean 'true' indicates multipart message for attachments
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-
             helper.setTo(to);
             helper.setSubject(subject);
-            helper.setText(html, true);
-            helper.setFrom("benslemajecem@gmail.com"); // Best practice to set the from address
+            helper.setFrom("benslemajecem@gmail.com");
 
-            // --- ATTACHMENT FIX ---
+            // 2. Create the Multipart container
+            MimeMultipart multipart = new MimeMultipart("mixed");
+
+            // 3. Add the HTML Body Part
+            MimeBodyPart htmlPart = new MimeBodyPart();
+            htmlPart.setContent(htmlContent, "text/html; charset=UTF-8");
+            multipart.addBodyPart(htmlPart);
+
+            // 4. Add the Calendar Part (The "Magic" Part)
             if (attachment != null && attachment.length > 0) {
-                log.info("[{}] Attaching .ics file (Size: {} bytes)",
-                        Thread.currentThread().getName(), attachment.length);
+                boolean isCancellation = templateName.contains("cancelled");
+                String method = isCancellation ? "CANCEL" : "REQUEST"; 
+                // Note: Using REQUEST instead of PUBLISH often triggers the "Accept/Decline" buttons in Gmail
 
-                // "text/calendar" ensures Gmail/Outlook recognizes it as a meeting invite
-                helper.addAttachment("invite.ics",
-                        new ByteArrayResource(attachment), "text/calendar");
+                MimeBodyPart calPart = new MimeBodyPart();
+                calPart.setHeader("Content-Type", "text/calendar; charset=UTF-8; method=" + method);
+                calPart.setDataHandler(new DataHandler(new ByteArrayDataSource(attachment, "text/calendar")));
+                multipart.addBodyPart(calPart);
+                
+                log.info("Calendar method set to: {}", method);
             }
 
+            message.setContent(multipart);
             mailSender.send(message);
-            log.info("[{}] SUCCESS: Email delivered to {}", Thread.currentThread().getName(), to);
+            
+            log.info("SUCCESS: Actionable email sent to {}", to);
 
-        } catch (MessagingException e) {
-            log.error("[{}] SMTP ERROR: Failed to send to {}",
-                    Thread.currentThread().getName(), to, e);
+        } catch (Exception e) {
+            log.error("SMTP ERROR: Failed to send actionable email to {}", to, e);
         }
     }
 }

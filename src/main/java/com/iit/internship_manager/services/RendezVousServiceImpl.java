@@ -87,15 +87,18 @@ public class RendezVousServiceImpl implements IRendezVousService {
         return saveAndBroadcast(rdv);
     }
 
-    // RESTORED: Private helper to maintain the 1-hour conflict logic
     private void checkTeacherAvailability(String teacherEmail, java.time.LocalDateTime dateTime, Long currentId) {
-        boolean conflict = rendezVousRepository.existsByTeacherEmailAndDateBetween(
+        // If currentId is null, we use a large negative value or a different query
+        // to ensure we don't accidentally ignore a real conflict.
+        Long idToExclude = (currentId != null) ? currentId : -1L;
+
+        boolean conflict = rendezVousRepository.existsByAffectationEncadrantEmailAndDateHeureBetweenAndIdNot(
                 teacherEmail,
                 dateTime.minusMinutes(59),
-                dateTime.plusMinutes(59));
+                dateTime.plusMinutes(59),
+                idToExclude);
 
         if (conflict) {
-            // Optional: Check if the conflict is not the meeting itself (for updates)
             throw new DomainException(ErrorCode.CONFLICT, "Teacher is already booked within an hour of this time.");
         }
     }
