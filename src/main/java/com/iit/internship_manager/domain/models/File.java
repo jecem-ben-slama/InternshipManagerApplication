@@ -5,7 +5,6 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "files")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -18,15 +17,15 @@ public class File {
 
     private String originalName;
     private String storedName;
-    private String fileType; // Keep this: e.g., "application/pdf"
-    private Long size; // Keep this: Size in bytes
+    private String fileType;
+    private long size;
     private LocalDateTime uploadTime;
 
-    // The Teacher/Supervisor/Student who uploaded the file
-    private Long ownerId;
-
-    // The specific Internship (Affectation) this file belongs to
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "affectation_id")
     private Affectation affectation;
+
+    @ManyToOne(fetch = FetchType.LAZY) // Use Lazy to keep it performant
+    @JoinColumn(name = "owner_id")
+    private Utilisateur owner;
 }

@@ -34,3 +34,4 @@ build/
 # Security: Environment variables
 .env
 .env.local
+.uploads/
