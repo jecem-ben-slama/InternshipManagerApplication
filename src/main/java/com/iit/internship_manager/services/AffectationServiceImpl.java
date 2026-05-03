@@ -2,6 +2,7 @@ package com.iit.internship_manager.services;
 
 import com.iit.internship_manager.domain.models.*;
 import com.iit.internship_manager.domain.enums.DemandeStatus;
+import com.iit.internship_manager.domain.enums.DepartmentType;
 import com.iit.internship_manager.domain.enums.ErrorCode;
 import com.iit.internship_manager.domain.enums.SujetStatus;
 import com.iit.internship_manager.domain.exceptions.DomainException;
@@ -35,12 +36,15 @@ public class AffectationServiceImpl implements IAffectationService {
     private final SubjectRepository sujetRepository;
     private final CandidatureRepository candidatureRepository;
     private final ISecurityContext securityContext;
-    private final CurrentYearProvider currentYearProvider; // For year logic
-    private final AcademicYearRepository academicYearRepository; // For year logic
+    private final CurrentYearProvider currentYearProvider;
+    private final AcademicYearRepository academicYearRepository;
 
     @Override
     @Transactional(readOnly = true)
     public Page<AffectationResponseDTO> getMyAffectations(Pageable pageable) {
+        if (securityContext.isAdmin())
+            throw new DomainException(ErrorCode.FORBIDDEN, "Accès refusé.");
+
         Utilisateur currentUser = securityContext.getCurrentUser();
         AcademicYear currentYear = currentYearProvider.getCurrent();
 
@@ -56,7 +60,6 @@ public class AffectationServiceImpl implements IAffectationService {
         }
 
         if (currentUser instanceof Etudiant student) {
-            // Students should only have ONE affectation per academic year
             List<Affectation> affectations = affectationRepository
                     .findByGroupeMembresIdAndAnneeUniversitaire(student.getId(), currentYear);
             return new PageImpl<>(
@@ -68,28 +71,41 @@ public class AffectationServiceImpl implements IAffectationService {
         throw new DomainException(ErrorCode.FORBIDDEN, "Rôle non reconnu.");
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public Page<AffectationResponseDTO> getAffectationsByYear(String yearId, Pageable pageable) {
-        // 1. Fetch the specific academic year requested
-        AcademicYear year = academicYearRepository.findById(yearId)
-                .orElseThrow(() -> new ResourceNotFoundException("Année universitaire"+ yearId +" introuvable", null));
-
-        // 2. Identify the current user and their department
-        Utilisateur currentUser = securityContext.getCurrentUser();
-        if (!(currentUser instanceof Enseignant teacher)) {
-            throw new DomainException(ErrorCode.FORBIDDEN, "Accès restreint aux enseignants pour consulter les archives.");
-        }
-
-        // 3. Query the repository for affectations in that year and department
-        return affectationRepository.findByDepartmentAndAnneeUniversitaire(
-                teacher.getDepartment(),
-                year,
-                pageable).map(AffectationResponseDTO::fromEntity);
+   @Override
+@Transactional(readOnly = true)
+public Page<AffectationResponseDTO> getAffectationsByYear(String yearId, Pageable pageable) {
+    if (securityContext.isAdmin()) {
+        throw new DomainException(ErrorCode.FORBIDDEN, "Accès refusé.");
     }
+
+    AcademicYear year = academicYearRepository.findById(yearId)
+            .orElseThrow(() -> new ResourceNotFoundException("Année universitaire " + yearId + " introuvable", null));
+
+    Utilisateur currentUser = securityContext.getCurrentUser();
+    
+    // Changed type from String to DepartmentType to match your domain model
+    DepartmentType dept = null;
+
+    if (currentUser instanceof Enseignant e) {
+        dept = e.getDepartment();
+    } else if (currentUser instanceof Etudiant s) {
+        dept = s.getDepartment();
+    }
+
+    if (dept == null) {
+        throw new DomainException(ErrorCode.FORBIDDEN, "Accès restreint : département introuvable.");
+    }
+
+    // Now 'dept' matches the expected DepartmentType parameter in the repository
+    return affectationRepository.findByDepartmentAndAnneeUniversitaire(dept, year, pageable)
+            .map(AffectationResponseDTO::fromEntity);
+}
     @Override
     @Transactional(readOnly = true)
     public Page<StudentWorkloadDTO> getWorkloadView(Pageable pageable) {
+        if (securityContext.isAdmin())
+            throw new DomainException(ErrorCode.FORBIDDEN, "Accès refusé.");
+
         Utilisateur currentUser = securityContext.getCurrentUser();
         AcademicYear currentYear = currentYearProvider.getCurrent();
         Page<Affectation> affectationsPage;
@@ -113,138 +129,110 @@ public class AffectationServiceImpl implements IAffectationService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<Etudiant> getUnassignedStudents(Pageable pageable) {
-        Utilisateur currentUser = securityContext.getCurrentUser();
-        if (!securityContext.isResponsablePFE() || !(currentUser instanceof Enseignant resp)) {
-            throw new DomainException(ErrorCode.FORBIDDEN, "Accès réservé au responsable.");
-        }
-
-        // This query must filter students who DON'T have an affectation in the CURRENT
-        // year
-        return userRepository.findStudentsWithoutAffectationByDepartmentAndYear(resp.getDepartment(),
-                currentYearProvider.getCurrent(), pageable);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
     public Page<TeacherWorkloadDTO> getTeachersWorkload(Pageable pageable) {
+        if (securityContext.isAdmin())
+            throw new DomainException(ErrorCode.FORBIDDEN, "Accès refusé.");
+
         Utilisateur currentUser = securityContext.getCurrentUser();
         AcademicYear currentYear = currentYearProvider.getCurrent();
 
-        if (!securityContext.isResponsablePFE() || !(currentUser instanceof Enseignant resp)) {
-            throw new DomainException(ErrorCode.FORBIDDEN, "Accès réservé au responsable.");
+        // Responsable sees everyone in dept
+        if (securityContext.isResponsablePFE() && currentUser instanceof Enseignant resp) {
+            return userRepository.findAllEnseignantsByDepartment(resp.getDepartment(), pageable)
+                    .map(e -> buildTeacherWorkload(e, currentYear));
         }
 
-        return userRepository.findAllEnseignantsByDepartment(resp.getDepartment(), pageable)
-                .map(e -> {
-                    // DYNAMIC COUNT: Instead of using e.getEncadrementsActuels(), we count actual
-                    // DB records for this year
-                    long currentCount = affectationRepository.countByEncadrantAndAnneeUniversitaire(e, currentYear);
+        // Regular teacher sees only their own quota
+        if (currentUser instanceof Enseignant teacher) {
+            return new PageImpl<>(List.of(buildTeacherWorkload(teacher, currentYear)));
+        }
 
-                    double percentage = (e.getQuotaAnnuel() > 0)
-                            ? ((double) currentCount / e.getQuotaAnnuel()) * 100
-                            : 0;
-
-                    return TeacherWorkloadDTO.builder()
-                            .teacherId(e.getId())
-                            .teacherName(e.getNom() + " " + e.getPrenom())
-                            .anneeId(currentYear.getId()) // Matches the new field
-                            .currentEncadrements((int) currentCount)
-                            .maxQuota(e.getQuotaAnnuel())
-                            .occupationPercentage(percentage)
-                            .build();
-                });
+        throw new DomainException(ErrorCode.FORBIDDEN, "Accès réservé aux enseignants.");
     }
-    
+
     @Override
     @Transactional
     public void abortAffectation(Long affectationId) {
+        if (securityContext.isAdmin())
+            throw new DomainException(ErrorCode.FORBIDDEN, "Accès refusé.");
+
         Affectation affectation = affectationRepository.findById(affectationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Affectation introuvable", affectationId));
 
-        checkResponsableAccess(affectation);
+        checkManagementAccess(affectation);
 
         AcademicYear currentYear = affectation.getAnneeUniversitaire();
         Sujet currentSujet = affectation.getSujet();
-        Enseignant teacher = currentSujet.getEnseignant();
-        Candidature originalCandidature = affectation.getOriginalCandidature();
 
-        // 1. Reset the specific subject
         currentSujet.setStatut(SujetStatus.AVAILABLE);
         sujetRepository.save(currentSujet);
 
-        // 2. CRITICAL STEP: Delete the affectation FIRST
-        // This ensures that when we check "existsByEtudiantAndYear", this record is
-        // gone
         affectationRepository.delete(affectation);
-
-        // Force Hibernate to sync with DB so the record is actually gone before the
-        // next queries
         affectationRepository.flush();
 
-        // 3. Refresh Teacher Quota Subjects
-        List<Sujet> teacherSubjects = sujetRepository.findByEnseignantAndAnneeUniversitaire(teacher, currentYear);
-        long currentLoad = affectationRepository.countByEncadrantAndAnneeUniversitaire(teacher, currentYear);
-
-        if (currentLoad < teacher.getQuotaAnnuel()) {
-            for (Sujet s : teacherSubjects) {
-                if (s.getStatut() == SujetStatus.TAKEN) {
-                    s.setStatut(SujetStatus.AVAILABLE);
-                }
-            }
-            sujetRepository.saveAll(teacherSubjects);
-        }
-
-        // 4. Revive Candidatures
-        List<Candidature> toRevive = candidatureRepository.findBySujetAndStatut(currentSujet,
-                DemandeStatus.REJECTED_BY_SYSTEM);
-        if (originalCandidature != null) {
-            toRevive.add(originalCandidature);
-        }
-
-        for (Candidature cand : toRevive) {
-            // Now this check will accurately return 'false' for these students
-            // because the affectation was deleted and flushed.
-            boolean isAnyStudentAssigned = cand.getGroupe().getMembres().stream()
-                    .anyMatch(m -> affectationRepository.existsByEtudiantAndYear(m, currentYear));
-
-            if (!isAnyStudentAssigned) {
-                cand.setStatut(DemandeStatus.PENDING);
-            }
-        }
-        candidatureRepository.saveAll(toRevive);
-    }
- @Override
-    @Transactional(readOnly = true)
-    public long getTotalAssignmentsCount() {
-        Utilisateur currentUser = securityContext.getCurrentUser();
-        AcademicYear currentYear = currentYearProvider.getCurrent();
-
-        if (securityContext.isResponsablePFE() && currentUser instanceof Enseignant resp) {
-            return affectationRepository.countByDepartmentAndAnneeUniversitaire(resp.getDepartment(), currentYear);
-        }
-        return affectationRepository.countByAnneeUniversitaire(currentYear);
+        // Refresh system logic for candidatures...
+        reviveCandidatures(currentSujet, affectation.getOriginalCandidature(), currentYear);
     }
 
-    // --- Helpers stay similar but verify department logic ---
-    // completeProject remains the same as it updates status by ID
     @Override
     @Transactional
     public void completeProject(Long id) {
+        if (securityContext.isAdmin())
+            throw new DomainException(ErrorCode.FORBIDDEN, "Accès refusé.");
+
         Affectation affectation = affectationRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Affectation not found", id));
-        checkResponsableAccess(affectation);
+
+        checkManagementAccess(affectation);
+
         affectation.setStatus("COMPLETED");
         affectationRepository.save(affectation);
     }
 
-    private void checkResponsableAccess(Affectation affectation) {
+    private void checkManagementAccess(Affectation affectation) {
         Utilisateur currentUser = securityContext.getCurrentUser();
-        if (securityContext.isResponsablePFE() && currentUser instanceof Enseignant resp) {
-            if (!affectation.getEncadrant().getDepartment().equals(resp.getDepartment())) {
-                throw new DomainException(ErrorCode.FORBIDDEN, "Vous ne pouvez agir que sur votre département.");
+        if (!(currentUser instanceof Enseignant teacher)) {
+            throw new DomainException(ErrorCode.FORBIDDEN, "Action réservée aux enseignants.");
+        }
+
+        // Rule: Can manage if it's YOUR project OR you are the Responsable of the dept
+        boolean isOwner = affectation.getEncadrant().getId().equals(teacher.getId());
+        boolean isResponsableOfDept = securityContext.isResponsablePFE() &&
+                affectation.getEncadrant().getDepartment().equals(teacher.getDepartment());
+
+        if (!isOwner && !isResponsableOfDept) {
+            throw new DomainException(ErrorCode.FORBIDDEN, "Vous n'avez pas les droits sur cette affectation.");
+        }
+    }
+
+    private TeacherWorkloadDTO buildTeacherWorkload(Enseignant e, AcademicYear year) {
+        long currentCount = affectationRepository.countByEncadrantAndAnneeUniversitaire(e, year);
+        double percentage = (e.getQuotaAnnuel() > 0) ? ((double) currentCount / e.getQuotaAnnuel()) * 100 : 0;
+
+        return TeacherWorkloadDTO.builder()
+                .teacherId(e.getId())
+                .teacherName(e.getNom() + " " + e.getPrenom())
+                .anneeId(year.getId())
+                .currentEncadrements((int) currentCount)
+                .maxQuota(e.getQuotaAnnuel())
+                .occupationPercentage(percentage)
+                .build();
+    }
+
+    private void reviveCandidatures(Sujet sujet, Candidature original, AcademicYear year) {
+        List<Candidature> toRevive = candidatureRepository.findBySujetAndStatut(sujet,
+                DemandeStatus.REJECTED_BY_SYSTEM);
+        if (original != null)
+            toRevive.add(original);
+
+        for (Candidature cand : toRevive) {
+            boolean isAnyMemberAssigned = cand.getGroupe().getMembres().stream()
+                    .anyMatch(m -> affectationRepository.existsByEtudiantAndYear(m, year));
+            if (!isAnyMemberAssigned) {
+                cand.setStatut(DemandeStatus.PENDING);
             }
         }
+        candidatureRepository.saveAll(toRevive);
     }
 
     private StudentWorkloadDTO mapToWorkloadDTO(Affectation affectation) {
@@ -254,7 +242,7 @@ public class AffectationServiceImpl implements IAffectationService {
 
         return StudentWorkloadDTO.builder()
                 .affectationId(affectation.getId())
-                .status(affectation.getStatus() != null ? affectation.getStatus().toString() : "UNKNOWN")
+                .status(affectation.getStatus() != null ? affectation.getStatus() : "UNKNOWN")
                 .dateAffectation(affectation.getDateAffectation())
                 .sujetId(affectation.getSujet().getId())
                 .sujetTitre(affectation.getSujet().getTitre())
@@ -263,5 +251,31 @@ public class AffectationServiceImpl implements IAffectationService {
                 .encadrantEmail(affectation.getEncadrant().getEmail())
                 .coworkers(members)
                 .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<Etudiant> getUnassignedStudents(Pageable pageable) {
+        if (securityContext.isAdmin())
+            throw new DomainException(ErrorCode.FORBIDDEN, "Accès refusé.");
+        Utilisateur currentUser = securityContext.getCurrentUser();
+        if (!securityContext.isResponsablePFE() || !(currentUser instanceof Enseignant resp)) {
+            throw new DomainException(ErrorCode.FORBIDDEN, "Accès réservé au responsable.");
+        }
+        return userRepository.findStudentsWithoutAffectationByDepartmentAndYear(resp.getDepartment(),
+                currentYearProvider.getCurrent(), pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long getTotalAssignmentsCount() {
+        if (securityContext.isAdmin())
+            return 0;
+        Utilisateur currentUser = securityContext.getCurrentUser();
+        AcademicYear currentYear = currentYearProvider.getCurrent();
+        if (securityContext.isResponsablePFE() && currentUser instanceof Enseignant resp) {
+            return affectationRepository.countByDepartmentAndAnneeUniversitaire(resp.getDepartment(), currentYear);
+        }
+        return affectationRepository.countByAnneeUniversitaire(currentYear);
     }
 }

@@ -1,4 +1,5 @@
 package com.iit.internship_manager.services;
+
 import com.iit.internship_manager.domain.enums.ErrorCode;
 import com.iit.internship_manager.domain.exceptions.DomainException;
 import com.iit.internship_manager.domain.models.Enseignant;
@@ -19,7 +20,8 @@ public class SecurityContextImpl implements ISecurityContext {
     public Utilisateur getCurrentUser() {
         String email = getCurrentUserEmail();
         return userRepository.findByEmail(email)
-                .orElseThrow(() -> new DomainException(ErrorCode.RESOURCE_NOT_FOUND, "Utilisateur introuvable dans la base de données."));
+                .orElseThrow(() -> new DomainException(ErrorCode.RESOURCE_NOT_FOUND,
+                        "Utilisateur introuvable dans la base de données."));
     }
 
     @Override
@@ -29,24 +31,40 @@ public class SecurityContextImpl implements ISecurityContext {
 
     @Override
     public String getCurrentUserEmail() {
-        return SecurityContextHolder.getContext().getAuthentication().getName();
+        // Standard check to ensure Authentication is not null
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null) {
+            throw new DomainException(ErrorCode.FORBIDDEN, "Utilisateur non authentifié.");
+        }
+        return auth.getName();
     }
 
     @Override
     public boolean hasRole(String role) {
-        return SecurityContextHolder.getContext().getAuthentication().getAuthorities()
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null)
+            return false;
+
+        return auth.getAuthorities()
                 .stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_" + role));
     }
+
+    @Override
+    public boolean isAdmin() {
+        // Check if the Spring Security context contains the ADMIN role
+        return hasRole("ADMIN");
+    }
+
     @Override
     public boolean isResponsablePFE() {
         Utilisateur user = getCurrentUser();
-        
-        // Only Enseignants can be Responsables
+
+        // Only Enseignants can be Responsables based on your domain model
         if (user instanceof Enseignant teacher) {
             return teacher.isResponsablePFE();
         }
-        
+
         return false;
     }
 }

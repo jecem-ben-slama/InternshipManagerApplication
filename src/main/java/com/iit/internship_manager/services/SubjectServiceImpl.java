@@ -32,17 +32,22 @@ public class SubjectServiceImpl implements ISubjectService {
     @Override
     @Transactional(readOnly = true)
     public Page<SujetResponseDTO> findAll(Pageable pageable) {
-        // Always scoped to the current active year
         AcademicYear currentYear = currentYearProvider.getCurrent();
-        return subjectRepository.findAll(currentYear, pageable).map(SujetResponseDTO::fromEntity);
+        DepartmentType userDept = resolveUserDepartment();
+
+        return subjectRepository.findByDepartmentAndAnneeUniversitaire(userDept, currentYear, pageable)
+                .map(SujetResponseDTO::fromEntity);
     }
 
     @Override
     @Transactional(readOnly = true)
     public SujetResponseDTO findById(Long id) {
-        return subjectRepository.findByIdWithDetails(id)
-                .map(SujetResponseDTO::fromEntity)
+        Sujet sujet = subjectRepository.findByIdWithDetails(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Sujet", id));
+
+      
+
+        return SujetResponseDTO.fromEntity(sujet);
     }
 
     @Override
@@ -51,23 +56,20 @@ public class SubjectServiceImpl implements ISubjectService {
         AcademicYear year = academicYearRepository.findById(yearId)
                 .orElseThrow(
                         () -> new ResourceNotFoundException("Année universitaire " + yearId + " introuvable", null));
-        return subjectRepository.findByAnneeUniversitaire(year, pageable)
+
+        DepartmentType userDept = resolveUserDepartment();
+        return subjectRepository.findByDepartmentAndAnneeUniversitaire(userDept, year, pageable)
                 .map(SujetResponseDTO::fromEntity);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<SujetResponseDTO> getSubjectsByStatus(SujetStatus status, Pageable pageable) {
-        Utilisateur currentUser = securityContext.getCurrentUser();
+        DepartmentType userDept = resolveUserDepartment();
         AcademicYear currentYear = currentYearProvider.getCurrent();
 
-        if (currentUser instanceof Etudiant student) {
-            return subjectRepository.findByStatutAndDepartmentAndAnneeUniversitaire(
-                    status, student.getDepartment(), currentYear, pageable)
-                    .map(SujetResponseDTO::fromEntity);
-        }
-
-        return subjectRepository.findByStatutAndAnneeUniversitaire(status, currentYear, pageable)
+        return subjectRepository.findByStatutAndDepartmentAndAnneeUniversitaire(
+                status, userDept, currentYear, pageable)
                 .map(SujetResponseDTO::fromEntity);
     }
 
@@ -77,16 +79,10 @@ public class SubjectServiceImpl implements ISubjectService {
         Sujet sujet = subjectRepository.findByIdWithDetails(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Sujet", id));
 
+        validateOwnershipAndDept(sujet);
+
         if (sujet.getStatut() == SujetStatus.TAKEN) {
-            throw new DomainException(ErrorCode.FORBIDDEN, "Ce sujet est déjà assigné et ne peut plus être modifié.");
-        }
-
-        String email = securityContext.getCurrentUserEmail();
-        boolean isOwner = (sujet.getEnseignant() != null && sujet.getEnseignant().getEmail().equals(email)) ||
-                (sujet.getProposant() != null && sujet.getProposant().getEmail().equals(email));
-
-        if (!isOwner && !securityContext.hasRole("ADMIN_IT")) {
-            throw new DomainException(ErrorCode.FORBIDDEN, "Vous n'êtes pas autorisé à modifier ce sujet.");
+            throw new DomainException(ErrorCode.FORBIDDEN, "Ce sujet est déjà assigné.");
         }
 
         mapCommonFields(sujet, dto);
@@ -105,6 +101,8 @@ public class SubjectServiceImpl implements ISubjectService {
         Sujet sujet = subjectRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Sujet", id));
 
+     
+
         sujet.setStatut(status);
         return SujetResponseDTO.fromEntity(subjectRepository.save(sujet));
     }
@@ -114,6 +112,8 @@ public class SubjectServiceImpl implements ISubjectService {
     public void deleteSujet(Long id) {
         Sujet sujet = subjectRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Sujet", id));
+
+        validateOwnershipAndDept(sujet);
 
         if (sujet.getStatut() == SujetStatus.TAKEN) {
             throw new DomainException(ErrorCode.FORBIDDEN, "Impossible de supprimer un sujet déjà assigné.");
@@ -156,6 +156,10 @@ public class SubjectServiceImpl implements ISubjectService {
         Enseignant teacher = userRepository.findEnseignantById(teacherId)
                 .orElseThrow(() -> new ResourceNotFoundException("Enseignant", teacherId));
 
+        if (!teacher.getDepartment().equals(student.getDepartment())) {
+            throw new DomainException(ErrorCode.FORBIDDEN, "L'enseignant choisi n'appartient pas à votre département.");
+        }
+
         Groupe group = groupeService.getOrCreateGroup(student, dto.getPartnerIds());
 
         Sujet sujet = new Sujet();
@@ -174,12 +178,36 @@ public class SubjectServiceImpl implements ISubjectService {
     @Override
     @Transactional(readOnly = true)
     public Page<SujetResponseDTO> getSubjectsByCurrentTeacher(Pageable pageable) {
-        // Full history (all years) for the current teacher
         return subjectRepository.findByEnseignantId(securityContext.getCurrentUserId(), pageable)
                 .map(SujetResponseDTO::fromEntity);
     }
 
     // --- Private Helpers ---
+
+    private DepartmentType resolveUserDepartment() {
+        Utilisateur user = securityContext.getCurrentUser();
+        if (user instanceof Etudiant e)
+            return e.getDepartment();
+        if (user instanceof Enseignant t)
+            return t.getDepartment();
+
+        throw new DomainException(ErrorCode.FORBIDDEN,
+                "Accès refusé : Seuls les étudiants et enseignants sont autorisés.");
+    }
+
+    private void validateOwnershipAndDept(Sujet sujet) {
+        Utilisateur user = securityContext.getCurrentUser();
+        String email = user.getEmail();
+
+        boolean isOwner = (sujet.getEnseignant() != null && sujet.getEnseignant().getEmail().equals(email)) ||
+                (sujet.getProposant() != null && sujet.getProposant().getEmail().equals(email));
+
+        if (!isOwner) {
+            throw new DomainException(ErrorCode.FORBIDDEN, "Vous n'êtes pas le propriétaire de ce sujet.");
+        }
+
+      
+    }
 
     private void validateMembersAvailability(Etudiant creator, List<Long> partnerIds) {
         List<Long> allMemberIds = new ArrayList<>();
@@ -189,7 +217,7 @@ public class SubjectServiceImpl implements ISubjectService {
 
         AcademicYear currentYear = currentYearProvider.getCurrent();
         if (affectationRepository.existsByGroupeMembresIdInAndAnneeUniversitaire(allMemberIds, currentYear)) {
-            throw new DomainException(ErrorCode.FORBIDDEN, "Un ou plusieurs membres du groupe sont déjà affectés pour cette année.");
+            throw new DomainException(ErrorCode.FORBIDDEN, "Un ou plusieurs membres sont déjà affectés.");
         }
     }
 

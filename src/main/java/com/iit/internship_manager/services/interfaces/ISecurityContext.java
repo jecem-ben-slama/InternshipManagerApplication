@@ -12,4 +12,5 @@ public interface ISecurityContext {
     boolean hasRole(String role);
     
     boolean isResponsablePFE();
+    boolean isAdmin();
 }

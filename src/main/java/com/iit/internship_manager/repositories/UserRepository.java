@@ -98,4 +98,32 @@ public interface UserRepository extends JpaRepository<Utilisateur, Long> {
                         @Param("year") AcademicYear year,
                         Pageable pageable);
 
+        /**
+         * Finds teachers whose current number of active affectations is strictly less
+         * than their maxQuota.
+         */
+        @Query("SELECT u FROM Utilisateur u WHERE u.role = 'ENSEIGNANT' AND u.enabled = true " +
+                        "AND (SELECT COUNT(a) FROM Affectation a WHERE a.enseignant = u AND a.isArchived = false) < u.maxQuota")
+        Page<Utilisateur> findAvailableTeachers(Pageable pageable);
+
+        @Query("SELECT u FROM Utilisateur u WHERE u.role = 'ENSEIGNANT' AND u.enabled = true " +
+                        "AND u.department = :dept " +
+                        "AND (SELECT COUNT(a) FROM Affectation a WHERE a.enseignant = u AND a.isArchived = false) < u.maxQuota")
+        Page<Utilisateur> findAvailableTeachersByDepartment(@Param("dept") DepartmentType dept, Pageable pageable);
+
+        // --- STUDENT QUERIES ---
+
+        /**
+         * Finds students who do not have an active (non-archived) internship
+         * affectation.
+         */
+        @Query("SELECT u FROM Utilisateur u WHERE u.role = 'ETUDIANT' AND u.enabled = true " +
+                        "AND NOT EXISTS (SELECT a FROM Affectation a JOIN a.etudiants e WHERE e.id = u.id AND a.isArchived = false)")
+        Page<Utilisateur> findAvailableStudents(Pageable pageable);
+
+        @Query("SELECT u FROM Utilisateur u WHERE u.role = 'ETUDIANT' AND u.enabled = true " +
+                        "AND u.department = :dept " +
+                        "AND NOT EXISTS (SELECT a FROM Affectation a JOIN a.etudiants e WHERE e.id = u.id AND a.isArchived = false)")
+        Page<Utilisateur> findAvailableStudentsByDepartment(@Param("dept") DepartmentType dept, Pageable pageable);
+
 }

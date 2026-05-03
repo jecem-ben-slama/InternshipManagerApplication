@@ -1,5 +1,4 @@
 package com.iit.internship_manager.web.controllers;
-
 import com.iit.internship_manager.services.interfaces.IUserService;
 import com.iit.internship_manager.services.interfaces.IUserUpdateService;
 import com.iit.internship_manager.web.dtos.ApiResponse;
@@ -94,5 +93,25 @@ public class UserController {
     public ResponseEntity<ApiResponse<Void>> reactivate(@PathVariable Long id) {
         userService.reactivate(id);
         return ResponseEntity.ok(ApiResponse.success("Utilisateur réactivé avec succès", null));
+    }
+    // Suggested additions to UserController.java
+
+    /**
+     * GET /api/users/teachers
+     * Fetches teachers within the user's department or filtered by department if
+     * Admin.
+     */
+    @GetMapping("/teachers/available")
+    public ResponseEntity<Page<UserResponseDTO>> getAvailableTeachers(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(userService.getTeachersByMyDepartment(page, size));
+    }
+
+    @GetMapping("/students/available")
+    public ResponseEntity<Page<UserResponseDTO>> getAvailableStudents(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(userService.getStudentsByMyDepartment(page, size));
     }
 }

@@ -17,7 +17,7 @@ public interface IUserService {
     void reactivate(Long id);
 
     boolean existsByEmail(String email);
-    Page<UserResponseDTO> getTeachersByMyDepartment(int page, int size, DepartmentType filterDept);
-    Page<UserResponseDTO> getStudentsByMyDepartment(int page, int size, DepartmentType filterDept);
+    Page<UserResponseDTO> getTeachersByMyDepartment(int page, int size);
+    Page<UserResponseDTO> getStudentsByMyDepartment(int page, int size);
     Page<UserResponseDTO> findAllByDepartment(DepartmentType department, int page, int size);
 }

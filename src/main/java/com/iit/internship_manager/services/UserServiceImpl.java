@@ -47,45 +47,39 @@ public class UserServiceImpl implements IUserService {
         return UserResponseDTO.fromEntity(targetUser);
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public Page<UserResponseDTO> getTeachersByMyDepartment(int page, int size, DepartmentType filterDept) {
-        Utilisateur currentUser = securityContext.getCurrentUser();
-        Pageable pageable = PageRequest.of(page, size);
+ @Override
+@Transactional(readOnly = true)
+public Page<UserResponseDTO> getTeachersByMyDepartment(int page, int size) {
+    // Automatically extract the current authenticated user
+    Utilisateur currentUser = securityContext.getCurrentUser();
+    Pageable pageable = PageRequest.of(page, size);
 
-        // 1. ADMIN Logic: Global access with optional department filtering
-        if (securityContext.hasRole("ADMIN_IT")) {
-            if (filterDept != null) {
-                return userRepository.findAllEnseignantsByDepartment(filterDept, pageable)
-                        .map(UserResponseDTO::fromEntity);
-            }
-            return userRepository.findAllEnseignants(pageable).map(UserResponseDTO::fromEntity);
-        }
-
-        // 2. Standard/Responsable Logic: Forced to current user's department
-        return userRepository.findAllEnseignantsByDepartment(currentUser.getDepartment(), pageable)
+    // ADMIN Logic: Admins aren't bound by departments, so they get everyone.
+    if (securityContext.hasRole("ADMIN_IT")) {
+        return userRepository.findAvailableTeachers(pageable)
                 .map(UserResponseDTO::fromEntity);
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public Page<UserResponseDTO> getStudentsByMyDepartment(int page, int size, DepartmentType filterDept) {
-        Utilisateur currentUser = securityContext.getCurrentUser();
-        Pageable pageable = PageRequest.of(page, size);
+    // Student/Teacher Logic: Force the department from the user's own profile
+    return userRepository.findAvailableTeachersByDepartment(currentUser.getDepartment(), pageable)
+            .map(UserResponseDTO::fromEntity);
+}
 
-        // 1. ADMIN Logic: Global access with optional department filtering
-        if (securityContext.hasRole("ADMIN_IT")) {
-            if (filterDept != null) {
-                return userRepository.findAllEtudiantsByDepartment(filterDept, pageable)
-                        .map(UserResponseDTO::fromEntity);
-            }
-            return userRepository.findAllEtudiants(pageable).map(UserResponseDTO::fromEntity);
-        }
+@Override
+@Transactional(readOnly = true)
+public Page<UserResponseDTO> getStudentsByMyDepartment(int page, int size) {
+    Utilisateur currentUser = securityContext.getCurrentUser();
+    Pageable pageable = PageRequest.of(page, size);
 
-        // 2. Standard/Responsable Logic: Forced to current user's department
-        return userRepository.findAllEtudiantsByDepartment(currentUser.getDepartment(), pageable)
+    if (securityContext.hasRole("ADMIN_IT")) {
+        return userRepository.findAvailableStudents(pageable)
                 .map(UserResponseDTO::fromEntity);
     }
+
+    // Automatically restricts student search to peers in the same department
+    return userRepository.findAvailableStudentsByDepartment(currentUser.getDepartment(), pageable)
+            .map(UserResponseDTO::fromEntity);
+}
 
     @Override
     @Transactional(readOnly = true)
