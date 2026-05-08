@@ -1,12 +1,12 @@
 package com.iit.internship_manager.services.interfaces;
 
-import org.springframework.core.io.Resource;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.core.io.Resource;
 
 public interface IFileStorageService {
-    String store(MultipartFile file, Long affectationId);
+    String store(MultipartFile file);
 
-    Resource load(String storedPath);
+    Resource load(String filename);
 
-    void delete(String storedPath);
+    void delete(String filename);
 }
