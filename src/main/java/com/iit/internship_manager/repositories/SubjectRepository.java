@@ -29,12 +29,23 @@ public interface SubjectRepository extends JpaRepository<Sujet, Long> {
 
         Page<Sujet> findByStatutAndAnneeUniversitaire(SujetStatus status, AcademicYear year, Pageable pageable);
 
-        // Filter by department field directly on the Sujet entity
-        Page<Sujet> findByDepartmentAndAnneeUniversitaire(DepartmentType department, AcademicYear anneeUniversitaire,
+        @Query("SELECT s FROM Sujet s WHERE " +
+                        "(s.enseignant.department = :dept OR s.proposant.department = :dept) " +
+                        "AND s.anneeUniversitaire = :year")
+        Page<Sujet> findByDepartmentAndAnneeUniversitaire(
+                        @Param("dept") DepartmentType department,
+                        @Param("year") AcademicYear year,
                         Pageable pageable);
 
-        @Query(value = "SELECT s FROM Sujet s LEFT JOIN FETCH s.enseignant LEFT JOIN FETCH s.proposant " +
-                        "WHERE s.statut = :status AND s.department = :dept AND s.anneeUniversitaire = :year", countQuery = "SELECT COUNT(s) FROM Sujet s WHERE s.statut = :status AND s.department = :dept AND s.anneeUniversitaire = :year")
+        @Query(value = "SELECT s FROM Sujet s " +
+                        "LEFT JOIN FETCH s.enseignant " +
+                        "LEFT JOIN FETCH s.proposant " +
+                        "WHERE s.statut = :status " +
+                        "AND (s.enseignant.department = :dept OR s.proposant.department = :dept) " +
+                        "AND s.anneeUniversitaire = :year", countQuery = "SELECT COUNT(s) FROM Sujet s " +
+                                        "WHERE s.statut = :status " +
+                                        "AND (s.enseignant.department = :dept OR s.proposant.department = :dept) " +
+                                        "AND s.anneeUniversitaire = :year")
         Page<Sujet> findByStatutAndDepartmentAndAnneeUniversitaire(
                         @Param("status") SujetStatus status,
                         @Param("dept") DepartmentType dept,

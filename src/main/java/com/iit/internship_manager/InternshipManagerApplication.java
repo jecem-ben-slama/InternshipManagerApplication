@@ -11,3 +11,5 @@ public class InternshipManagerApplication {
 		SpringApplication.run(InternshipManagerApplication.class, args);
 	}
 }
+
+

@@ -28,22 +28,25 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
+                // 1. Enable CORS and disable CSRF
+                .cors(org.springframework.security.config.Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
+
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                // Configure custom error handling for security exceptions
+
+                // 2. Configure custom error handling
                 .exceptionHandling(exception -> exception
-                        .authenticationEntryPoint(authEntryPoint) // Handles 401 Unauthorized
-                        .accessDeniedHandler(accessDeniedHandler) // Handles 403 Forbidden
-                )
+                        .authenticationEntryPoint(authEntryPoint)
+                        .accessDeniedHandler(accessDeniedHandler))
+
                 .authorizeHttpRequests(auth -> auth
-                        // 1. Allow everyone to Register or Login
+                        // 3. Permitted endpoints
                         .requestMatchers("/api/auth/login").permitAll()
                         .requestMatchers("/ws-endpoint/**").permitAll()
-                        
 
-                        // 3. All other requests must be authenticated
+                        // 4. All other requests must be authenticated
                         .anyRequest().authenticated())
-                // Add the JWT filter before the standard authentication filter
+
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

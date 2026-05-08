@@ -62,68 +62,49 @@ public interface UserRepository extends JpaRepository<Utilisateur, Long> {
         @Query("SELECT u FROM Etudiant u WHERE u.department = :dept AND u.active = true")
         Page<Etudiant> findAllEtudiantsByDepartment(@Param("dept") DepartmentType dept, Pageable pageable);
 
-        // --- Workload & Unassigned Logic (Essential for AffectationService) ---
+        // --- Workload & Unassigned Logic ---
 
-        /**
-         * Finds students who are NOT part of any group that has been officially
-         * assigned a project.
-         */
         @Query("SELECT u FROM Etudiant u WHERE u.active = true AND NOT EXISTS " +
-                        "(SELECT a FROM Affectation a JOIN a.groupe g JOIN g.membres m WHERE m.id = u.id)")
+                        "(SELECT a FROM Affectation a JOIN a.groupe g JOIN g.membres m WHERE m.id = u.id AND a.status <> 'COMPLETED')")
         Page<Etudiant> findStudentsWithoutAffectation(Pageable pageable);
 
-        /**
-         * Finds unassigned students specifically within a department (for Responsable
-         * PFE view).
-         */
         @Query("SELECT u FROM Etudiant u WHERE u.department = :dept AND u.active = true AND NOT EXISTS " +
-                        "(SELECT a FROM Affectation a WHERE a.anneeUniversitaire = :year " +
-                        "AND EXISTS (SELECT m FROM a.groupe.membres m WHERE m.id = u.id))")
-        Page<Etudiant> findStudentsWithoutAffectationByDepartment(
-                        @Param("dept") DepartmentType dept,
-                        @Param("year") String year,
-                        Pageable pageable);
-
-        @Query("SELECT e FROM Etudiant e WHERE e.id NOT IN " +
-                        "(SELECT m.id FROM Affectation a JOIN a.groupe g JOIN g.membres m)")
-        List<Etudiant> findStudentsWithoutAffectationList();
-
-        @Query("SELECT e FROM Etudiant e WHERE e.department = :dept " +
-                        "AND NOT EXISTS ( " +
-                        "  SELECT a FROM Affectation a JOIN a.groupe g JOIN g.membres m " +
-                        "  WHERE m.id = e.id AND a.anneeUniversitaire = :year " +
-                        ")")
+                        "(SELECT a FROM Affectation a JOIN a.groupe g JOIN g.membres m " +
+                        "WHERE m.id = u.id AND a.anneeUniversitaire = :year AND a.status <> 'COMPLETED')")
         Page<Etudiant> findStudentsWithoutAffectationByDepartmentAndYear(
                         @Param("dept") DepartmentType dept,
                         @Param("year") AcademicYear year,
                         Pageable pageable);
 
-        /**
-         * Finds teachers whose current number of active affectations is strictly less
-         * than their maxQuota.
-         */
-        @Query("SELECT u FROM Utilisateur u WHERE u.role = 'ENSEIGNANT' AND u.enabled = true " +
-                        "AND (SELECT COUNT(a) FROM Affectation a WHERE a.enseignant = u AND a.isArchived = false) < u.maxQuota")
-        Page<Utilisateur> findAvailableTeachers(Pageable pageable);
+        @Query("SELECT e FROM Etudiant e WHERE e.id NOT IN " +
+                        "(SELECT m.id FROM Affectation a JOIN a.groupe g JOIN g.membres m WHERE a.status <> 'COMPLETED')")
+        List<Etudiant> findStudentsWithoutAffectationList();
 
-        @Query("SELECT u FROM Utilisateur u WHERE u.role = 'ENSEIGNANT' AND u.enabled = true " +
-                        "AND u.department = :dept " +
-                        "AND (SELECT COUNT(a) FROM Affectation a WHERE a.enseignant = u AND a.isArchived = false) < u.maxQuota")
-        Page<Utilisateur> findAvailableTeachersByDepartment(@Param("dept") DepartmentType dept, Pageable pageable);
-
-        // --- STUDENT QUERIES ---
+        // --- Availability Logic (Quotas and Status) ---
 
         /**
-         * Finds students who do not have an active (non-archived) internship
-         * affectation.
+         * Corrected field name from maxQuota to quotaAnnuel to match Enseignant entity.
          */
-        @Query("SELECT u FROM Utilisateur u WHERE u.role = 'ETUDIANT' AND u.enabled = true " +
-                        "AND NOT EXISTS (SELECT a FROM Affectation a JOIN a.etudiants e WHERE e.id = u.id AND a.isArchived = false)")
-        Page<Utilisateur> findAvailableStudents(Pageable pageable);
+        @Query("SELECT e FROM Enseignant e WHERE e.active = true " +
+                        "AND (SELECT COUNT(a) FROM Affectation a WHERE a.encadrant = e AND a.status <> 'COMPLETED') < e.quotaAnnuel")
+        Page<Enseignant> findAvailableTeachers(Pageable pageable);
 
-        @Query("SELECT u FROM Utilisateur u WHERE u.role = 'ETUDIANT' AND u.enabled = true " +
-                        "AND u.department = :dept " +
-                        "AND NOT EXISTS (SELECT a FROM Affectation a JOIN a.etudiants e WHERE e.id = u.id AND a.isArchived = false)")
-        Page<Utilisateur> findAvailableStudentsByDepartment(@Param("dept") DepartmentType dept, Pageable pageable);
+        /**
+         * Corrected to ensure field name consistency.
+         */
+        @Query("SELECT e FROM Enseignant e " +
+                        "WHERE e.active = true " +
+                        "AND e.department = :dept " +
+                        "AND (SELECT COUNT(a) FROM Affectation a WHERE a.encadrant = e AND a.status <> 'COMPLETED') < e.quotaAnnuel")
+        Page<Enseignant> findAvailableTeachersByDepartment(@Param("dept") DepartmentType dept, Pageable pageable);
 
+        // --- Student Availability Check ---
+
+        @Query("SELECT u FROM Etudiant u WHERE u.active = true " +
+                        "AND NOT EXISTS (SELECT a FROM Affectation a JOIN a.groupe g JOIN g.membres m WHERE m.id = u.id AND a.status <> 'COMPLETED')")
+        Page<Etudiant> findAvailableStudents(Pageable pageable);
+
+        @Query("SELECT u FROM Etudiant u WHERE u.active = true AND u.department = :dept " +
+                        "AND NOT EXISTS (SELECT a FROM Affectation a JOIN a.groupe g JOIN g.membres m WHERE m.id = u.id AND a.status <> 'COMPLETED')")
+        Page<Etudiant> findAvailableStudentsByDepartment(@Param("dept") DepartmentType dept, Pageable pageable);
 }
