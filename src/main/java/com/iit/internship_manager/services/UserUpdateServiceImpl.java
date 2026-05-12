@@ -13,6 +13,8 @@ import com.iit.internship_manager.web.dtos.updateUser.UpdateRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.util.StringUtils;
 
 import java.util.List;
 
@@ -23,6 +25,7 @@ public class UserUpdateServiceImpl implements IUserUpdateService {
     private final UserRepository userRepository;
     private final List<UserUpdateStrategy> updateStrategies;
     private final ISecurityContext securityContext;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     @Transactional
@@ -41,6 +44,10 @@ public class UserUpdateServiceImpl implements IUserUpdateService {
 
         // NEW: Centralized mapping for the department
         targetUser.setDepartment(dto.getDepartment());
+
+        if (StringUtils.hasText(dto.getPassword())) {
+            targetUser.setPassword(passwordEncoder.encode(dto.getPassword()));
+        }
 
         // Security Rule: Role changes are restricted to IT Admins
         if (securityContext.hasRole("ADMIN_IT") && dto.getRole() != null) {

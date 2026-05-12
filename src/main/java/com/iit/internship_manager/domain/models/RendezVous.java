@@ -30,7 +30,17 @@ public class RendezVous {
     @Builder.Default
     private MeetingStatus status = MeetingStatus.PENDING;
 
+    @Column(name = "est_confirme", nullable = false)
+    @Builder.Default
+    private boolean estConfirme = false;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "affectation_id")
     private Affectation affectation;
+
+    @PrePersist
+    @PreUpdate
+    void syncLegacyConfirmedFlag() {
+        this.estConfirme = this.status == MeetingStatus.CONFIRMED;
+    }
 }

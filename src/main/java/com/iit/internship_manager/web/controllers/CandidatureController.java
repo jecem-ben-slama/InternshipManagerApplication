@@ -24,9 +24,6 @@ public class CandidatureController {
 
     private final ICandidatureService candidatureService;
 
-    /**
-     * Get candidatures for the CURRENT academic year.
-     */
     @GetMapping("/me")
     @PreAuthorize("hasAnyRole('ETUDIANT', 'ENSEIGNANT')")
     public ResponseEntity<ApiResponse<Page<CandidatureResponseDTO>>> getMyCandidatures(
@@ -35,13 +32,10 @@ public class CandidatureController {
             @RequestParam(defaultValue = "10") int size) {
 
         Page<CandidatureResponseDTO> list = candidatureService.getPagedCandidatures(status, page, size);
-        return ResponseEntity.ok(ApiResponse.success("Liste des candidatures de l'année en cours récupérée", list));
+        return ResponseEntity.ok(ApiResponse.success("Liste des candidatures de l'annee en cours recuperee", list));
     }
 
-    /**
-     * ARCHIVE VIEW: Get candidatures for a specific academic year.
-     * Useful for teachers to check previous student applications/performance.
-     */
+
     @GetMapping("/archive/{yearId}")
     @PreAuthorize("hasAnyRole('ENSEIGNANT', 'ADMIN_IT')")
     public ResponseEntity<ApiResponse<Page<CandidatureResponseDTO>>> getCandidaturesByYear(
@@ -51,7 +45,7 @@ public class CandidatureController {
             @RequestParam(defaultValue = "10") int size) {
 
         Page<CandidatureResponseDTO> list = candidatureService.getCandidaturesByYear(yearId, status, page, size);
-        return ResponseEntity.ok(ApiResponse.success("Archives des candidatures récupérées", list));
+        return ResponseEntity.ok(ApiResponse.success("Archives des candidatures recuperees", list));
     }
 
     @PostMapping("/postuler/{sujetId}")
@@ -62,7 +56,7 @@ public class CandidatureController {
 
         candidatureService.postuler(sujetId, partnerIds);
         return new ResponseEntity<>(
-                ApiResponse.success("Candidature soumise pour l'année en cours", null),
+                ApiResponse.success("Candidature soumise pour l'annee en cours", null),
                 HttpStatus.CREATED);
     }
 
@@ -70,14 +64,14 @@ public class CandidatureController {
     @PreAuthorize("hasRole('ENSEIGNANT')")
     public ResponseEntity<ApiResponse<Void>> accepter(@PathVariable Long id) {
         candidatureService.accepterEtudiant(id);
-        return ResponseEntity.ok(ApiResponse.success("Candidature acceptée et affectation créée", null));
+        return ResponseEntity.ok(ApiResponse.success("Candidature acceptee et affectation creee", null));
     }
 
     @PatchMapping("/{id}/refuser")
     @PreAuthorize("hasRole('ENSEIGNANT')")
     public ResponseEntity<ApiResponse<Void>> refuser(@PathVariable Long id) {
         candidatureService.refuserEtudiant(id);
-        return ResponseEntity.ok(ApiResponse.success("Candidature refusée", null));
+        return ResponseEntity.ok(ApiResponse.success("Candidature refusee", null));
     }
 
     @PatchMapping("/{id}/clarifier")
@@ -87,13 +81,13 @@ public class CandidatureController {
             @Valid @RequestBody MessageRequest request) {
 
         candidatureService.demanderClarification(id, request.getContent());
-        return ResponseEntity.ok(ApiResponse.success("Demande de clarification envoyée", null));
+        return ResponseEntity.ok(ApiResponse.success("Demande de clarification envoyee", null));
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ETUDIANT')")
     public ResponseEntity<ApiResponse<Void>> annuler(@PathVariable Long id) {
         candidatureService.annulerCandidature(id);
-        return ResponseEntity.ok(ApiResponse.success("Candidature annulée avec succès", null));
+        return ResponseEntity.ok(ApiResponse.success("Candidature annulee avec succes", null));
     }
 }

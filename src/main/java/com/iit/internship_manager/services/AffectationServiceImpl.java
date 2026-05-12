@@ -41,12 +41,49 @@ public class AffectationServiceImpl implements IAffectationService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<AffectationResponseDTO> getMyAffectations(Pageable pageable) {
-        if (securityContext.isAdmin())
-            throw new DomainException(ErrorCode.FORBIDDEN, "Accès refusé.");
+    public AffectationResponseDTO getById(Long affectationId) {
+        Affectation affectation = affectationRepository.findById(affectationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Affectation introuvable", affectationId));
 
         Utilisateur currentUser = securityContext.getCurrentUser();
+
+        if (securityContext.isAdmin()) {
+            return AffectationResponseDTO.fromEntity(affectation);
+        }
+
+        if (currentUser instanceof Enseignant teacher) {
+            boolean isOwner = affectation.getEncadrant().getId().equals(teacher.getId());
+            boolean isResponsableOfDept = securityContext.isResponsablePFE()
+                    && affectation.getEncadrant().getDepartment().equals(teacher.getDepartment());
+
+            if (isOwner || isResponsableOfDept) {
+                return AffectationResponseDTO.fromEntity(affectation);
+            }
+        }
+
+        if (currentUser instanceof Etudiant student) {
+            boolean isMember = affectation.getGroupe() != null
+                    && affectation.getGroupe().getMembres() != null
+                    && affectation.getGroupe().getMembres().stream()
+                            .anyMatch(member -> member.getId().equals(student.getId()));
+
+            if (isMember) {
+                return AffectationResponseDTO.fromEntity(affectation);
+            }
+        }
+
+        throw new DomainException(ErrorCode.FORBIDDEN, "Acces refuse a cette affectation.");
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<AffectationResponseDTO> getMyAffectations(Pageable pageable) {
+        Utilisateur currentUser = securityContext.getCurrentUser();
         AcademicYear currentYear = currentYearProvider.getCurrent();
+        if (securityContext.isAdmin()) {
+            return affectationRepository.findByAnneeUniversitaire(currentYear, pageable)
+                    .map(AffectationResponseDTO::fromEntity);
+        }
 
         if (securityContext.isResponsablePFE() && currentUser instanceof Enseignant resp) {
             return affectationRepository
@@ -74,12 +111,13 @@ public class AffectationServiceImpl implements IAffectationService {
    @Override
 @Transactional(readOnly = true)
 public Page<AffectationResponseDTO> getAffectationsByYear(String yearId, Pageable pageable) {
-    if (securityContext.isAdmin()) {
-        throw new DomainException(ErrorCode.FORBIDDEN, "Accès refusé.");
-    }
-
     AcademicYear year = academicYearRepository.findById(yearId)
-            .orElseThrow(() -> new ResourceNotFoundException("Année universitaire " + yearId + " introuvable", null));
+            .orElseThrow(() -> new ResourceNotFoundException("Annee universitaire " + yearId + " introuvable", null));
+
+    if (securityContext.isAdmin()) {
+        return affectationRepository.findByAnneeUniversitaire(year, pageable)
+                .map(AffectationResponseDTO::fromEntity);
+    }
 
     Utilisateur currentUser = securityContext.getCurrentUser();
     
@@ -161,6 +199,10 @@ public Page<AffectationResponseDTO> getAffectationsByYear(String yearId, Pageabl
 
         checkManagementAccess(affectation);
 
+        if ("COMPLETED".equalsIgnoreCase(affectation.getStatus())) {
+            throw new DomainException(ErrorCode.CONFLICT, "Une affectation terminee ne peut plus etre annulee.");
+        }
+
         AcademicYear currentYear = affectation.getAnneeUniversitaire();
         Sujet currentSujet = affectation.getSujet();
 
@@ -184,6 +226,10 @@ public Page<AffectationResponseDTO> getAffectationsByYear(String yearId, Pageabl
                 .orElseThrow(() -> new ResourceNotFoundException("Affectation not found", id));
 
         checkManagementAccess(affectation);
+
+        if ("COMPLETED".equalsIgnoreCase(affectation.getStatus())) {
+            throw new DomainException(ErrorCode.CONFLICT, "Cette affectation est deja terminee.");
+        }
 
         affectation.setStatus("COMPLETED");
         affectationRepository.save(affectation);
@@ -256,11 +302,13 @@ public Page<AffectationResponseDTO> getAffectationsByYear(String yearId, Pageabl
     @Override
     @Transactional(readOnly = true)
     public Page<Etudiant> getUnassignedStudents(Pageable pageable) {
-        if (securityContext.isAdmin())
-            throw new DomainException(ErrorCode.FORBIDDEN, "Accès refusé.");
+        if (securityContext.isAdmin()) {
+            return userRepository.findStudentsWithoutAffectation(pageable);
+        }
+
         Utilisateur currentUser = securityContext.getCurrentUser();
         if (!securityContext.isResponsablePFE() || !(currentUser instanceof Enseignant resp)) {
-            throw new DomainException(ErrorCode.FORBIDDEN, "Accès réservé au responsable.");
+            throw new DomainException(ErrorCode.FORBIDDEN, "Acces reserve au responsable.");
         }
         return userRepository.findStudentsWithoutAffectationByDepartmentAndYear(resp.getDepartment(),
                 currentYearProvider.getCurrent(), pageable);

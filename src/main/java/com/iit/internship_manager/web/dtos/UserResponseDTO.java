@@ -36,6 +36,7 @@ public class UserResponseDTO {
     // Teacher specific fields
     private boolean isResponsablePFE;
     private Set<SpecialiteType> specialites;
+    private Integer quotaAnnuel;
 
     /**
      * Converts a Utilisateur entity into a UserResponseDTO based on its real type.
@@ -58,7 +59,8 @@ public class UserResponseDTO {
         } else if (user instanceof Enseignant enseignant) {
             builder.userType("TEACHER")
                     .isResponsablePFE(enseignant.isResponsablePFE())
-                    .specialites(enseignant.getSpecialites());
+                    .specialites(enseignant.getSpecialites())
+                    .quotaAnnuel(enseignant.getQuotaAnnuel());
         } else if (user instanceof AdminIT) {
             builder.userType("ADMIN");
         }

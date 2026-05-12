@@ -1,6 +1,7 @@
 package com.iit.internship_manager.web.controllers;
 
 import com.iit.internship_manager.services.interfaces.ITaskService;
+import com.iit.internship_manager.domain.enums.TaskStatus;
 import com.iit.internship_manager.web.dtos.TaskRequest;
 import com.iit.internship_manager.web.dtos.TaskResponseDTO;
 import lombok.RequiredArgsConstructor;
@@ -33,8 +34,18 @@ public class TaskController {
     @PatchMapping("/{taskId}/status")
     public ResponseEntity<TaskResponseDTO> updateStatus(
             @PathVariable Long taskId,
-            @RequestParam boolean completed) {
-        return ResponseEntity.ok(taskService.updateTaskStatus(taskId, completed));
+            @RequestParam(required = false) Boolean completed,
+            @RequestParam(required = false) TaskStatus status) {
+        TaskStatus resolvedStatus = status;
+
+        if (resolvedStatus == null) {
+            if (completed == null) {
+                throw new IllegalArgumentException("status or completed is required");
+            }
+            resolvedStatus = completed ? TaskStatus.COMPLETED : TaskStatus.IN_PROGRESS;
+        }
+
+        return ResponseEntity.ok(taskService.updateTaskStatus(taskId, resolvedStatus));
     }
 
     @DeleteMapping("/{taskId}")

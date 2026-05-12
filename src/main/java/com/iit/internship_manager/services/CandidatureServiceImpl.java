@@ -12,6 +12,8 @@ import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.thymeleaf.context.Context;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -20,16 +22,39 @@ import java.util.List;
 @RequiredArgsConstructor
 public class CandidatureServiceImpl implements ICandidatureService {
 
+    private static final Logger log = LoggerFactory.getLogger(CandidatureServiceImpl.class);
+
     private final CandidatureRepository candidatureRepository;
     private final SubjectRepository subjectRepository;
     private final IMessageService messageService;
     private final IGroupeService groupeService;
     private final ISecurityContext securityContext;
     private final AffectationRepository affectationRepository;
+    private final GroupeRepository groupeRepository;
     private final CurrentYearProvider currentYearProvider;
     private final AcademicYearRepository academicYearRepository;
     private final EnseignantRepository enseignantRepository;
     private final IEmailService emailService;
+
+    @Override
+    @Transactional(readOnly = true)
+    public CandidatureResponseDTO findById(Long candidatureId) {
+        Candidature candidature = candidatureRepository.findById(candidatureId)
+                .orElseThrow(() -> new ResourceNotFoundException("Candidature", candidatureId));
+
+        Utilisateur currentUser = securityContext.getCurrentUser();
+        boolean isTeacher = candidature.getSujet().getEnseignant().getId().equals(currentUser.getId());
+        boolean isMember = candidature.getGroupe() != null
+                && candidature.getGroupe().getMembres() != null
+                && candidature.getGroupe().getMembres().stream()
+                        .anyMatch(member -> member.getId().equals(currentUser.getId()));
+
+        if (!isTeacher && !isMember && currentUser.getRole() != Role.ADMIN_IT) {
+            throw new DomainException(ErrorCode.FORBIDDEN, "Acces refuse a cette candidature.");
+        }
+
+        return CandidatureResponseDTO.fromEntity(candidature);
+    }
 
     @Override
     @Transactional
@@ -63,6 +88,7 @@ public class CandidatureServiceImpl implements ICandidatureService {
 
         // 4. Update candidature status
         selected.setStatut(DemandeStatus.ACCEPTED_BY_TEACHER);
+        sujet.setStatut(SujetStatus.TAKEN);
 
         // 6. Auto-lock remaining subjects if teacher hits quota
         if ((currentCount + 1) >= teacher.getQuotaAnnuel()) {
@@ -70,8 +96,14 @@ public class CandidatureServiceImpl implements ICandidatureService {
         }
 
         // 7. Create official Affectation
+        Groupe affectationGroup = ensureGroupAvailableForAffectation(selected.getGroupe());
+        if (!affectationGroup.getId().equals(selected.getGroupe().getId())) {
+            selected.setGroupe(affectationGroup);
+            candidatureRepository.save(selected);
+        }
+
         Affectation affectation = new Affectation();
-        affectation.setGroupe(selected.getGroupe());
+        affectation.setGroupe(affectationGroup);
         affectation.setEncadrant(teacher);
         affectation.setSujet(sujet);
         affectation.setDateAffectation(LocalDateTime.now());
@@ -91,39 +123,47 @@ public class CandidatureServiceImpl implements ICandidatureService {
     }
 
     private void notifyResponsablePFE(Affectation aff) {
-        // Find the specific responsable for the department of the teacher
-        enseignantRepository
-                .findResponsableByDepartment(aff.getEncadrant().getDepartment())
-                .ifPresent(responsable -> {
-                    Context context = new Context();
-                    context.setVariable("supervisorName",
-                            aff.getEncadrant().getNom() + " " + aff.getEncadrant().getPrenom());
-                    context.setVariable("groupName", aff.getGroupe().getNom());
-                    context.setVariable("sujet", aff.getSujet().getTitre());
+        try {
+            List<Enseignant> responsables = enseignantRepository
+                    .findResponsablesByDepartment(aff.getEncadrant().getDepartment());
 
-                    emailService.sendEmail(
-                            responsable.getEmail(),
-                            "New Affectation Created: " + aff.getSujet().getTitre(),
-                            "new-affectation",
-                            context,
-                            null);
-                });
+            if (responsables.isEmpty()) {
+                return;
+            }
+
+            Context context = new Context();
+            context.setVariable("supervisorName",
+                    aff.getEncadrant().getNom() + " " + aff.getEncadrant().getPrenom());
+            context.setVariable("groupName", aff.getGroupe().getNom());
+            context.setVariable("sujet", aff.getSujet().getTitre());
+
+            responsables.forEach(responsable -> emailService.sendEmail(
+                    responsable.getEmail(),
+                    "New Affectation Created: " + aff.getSujet().getTitre(),
+                    "new-affectation",
+                    context,
+                    null));
+        } catch (Exception ex) {
+            log.warn("Responsable notification skipped for affectation {}", aff.getId(), ex);
+        }
     }
 
     private void notifyStudents(Candidature cand) {
-        Context context = new Context();
-        context.setVariable("sujet", cand.getSujet().getTitre());
-        context.setVariable("teacherName",
-                cand.getSujet().getEnseignant().getNom() + " " + cand.getSujet().getEnseignant().getPrenom());
+        try {
+            Context context = new Context();
+            context.setVariable("sujet", cand.getSujet().getTitre());
+            context.setVariable("teacherName",
+                    cand.getSujet().getEnseignant().getNom() + " " + cand.getSujet().getEnseignant().getPrenom());
 
-        cand.getGroupe().getMembres().forEach(student -> {
-            emailService.sendEmail(
+            cand.getGroupe().getMembres().forEach(student -> emailService.sendEmail(
                     student.getEmail(),
                     "Application Accepted!",
                     "candidature-accepted",
                     context,
-                    null);
-        });
+                    null));
+        } catch (Exception ex) {
+            log.warn("Student notification skipped for candidature {}", cand.getId(), ex);
+        }
     }
 
     @Override
@@ -286,5 +326,18 @@ public class CandidatureServiceImpl implements ICandidatureService {
 
         toReject.forEach(app -> app.setStatut(DemandeStatus.REJECTED_BY_SYSTEM));
         candidatureRepository.saveAll(toReject);
+    }
+
+    private Groupe ensureGroupAvailableForAffectation(Groupe group) {
+        if (affectationRepository.findByGroupeId(group.getId()).isEmpty()) {
+            return group;
+        }
+
+        Groupe clonedGroup = Groupe.builder()
+                .nom(group.getNom())
+                .membres(new java.util.ArrayList<>(group.getMembres()))
+                .build();
+
+        return groupeRepository.save(clonedGroup);
     }
 }

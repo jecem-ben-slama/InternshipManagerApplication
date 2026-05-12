@@ -8,6 +8,8 @@ import java.util.List;
 public interface ICandidatureService {
     void accepterEtudiant(Long candidatureId);
 
+    CandidatureResponseDTO findById(Long candidatureId);
+
     Page<CandidatureResponseDTO> getCandidaturesByYear(String yearId, DemandeStatus status, int page, int size);
     void refuserEtudiant(Long candidatureId);
 

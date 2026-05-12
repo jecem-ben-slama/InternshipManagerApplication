@@ -19,6 +19,7 @@ public class AffectationResponseDTO {
     private String encadrantNom;
     private Long candidatureId; // The key to the chat history!
     private LocalDateTime dateAffectation;
+    private String status;
     private String anneeId; // Added for the Year System (e.g., "2025-2026")
     private List<EtudiantResponseDTO> students; // List of students for this affectation (for teachers)
 
@@ -29,6 +30,7 @@ public class AffectationResponseDTO {
                 .encadrantNom(affectation.getEncadrant().getNom())
                 .candidatureId(affectation.getOriginalCandidature().getId())
                 .dateAffectation(affectation.getDateAffectation())
+                .status(affectation.getStatus())
                 // Accessing the ID of the ManyToOne relationship
                 .anneeId(affectation.getAnneeUniversitaire().getId())
                 .students(affectation.getGroupe().getMembres().stream()

@@ -47,6 +47,20 @@ public class UserServiceImpl implements IUserService {
         return UserResponseDTO.fromEntity(targetUser);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public Page<UserResponseDTO> findAllUsers(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+
+        if (securityContext.hasRole("ADMIN_IT")) {
+            return userRepository.findAll(pageable).map(UserResponseDTO::fromEntity);
+        }
+
+        DepartmentType userDept = securityContext.getCurrentUser().getDepartment();
+        return userRepository.findAllByDepartment(pageable, userDept)
+                .map(UserResponseDTO::fromEntity);
+    }
+
  @Override
 @Transactional(readOnly = true)
 public Page<UserResponseDTO> getTeachersByMyDepartment(int page, int size) {
@@ -93,6 +107,20 @@ public Page<UserResponseDTO> getStudentsByMyDepartment(int page, int size) {
 
         DepartmentType userDept = securityContext.getCurrentUser().getDepartment();
         return userRepository.findAllByDepartmentAndActiveTrue(pageable, userDept)
+                .map(UserResponseDTO::fromEntity);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<UserResponseDTO> findAllInactive(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+
+        if (securityContext.hasRole("ADMIN_IT")) {
+            return userRepository.findAllByActiveFalse(pageable).map(UserResponseDTO::fromEntity);
+        }
+
+        DepartmentType userDept = securityContext.getCurrentUser().getDepartment();
+        return userRepository.findAllByDepartmentAndActiveFalse(pageable, userDept)
                 .map(UserResponseDTO::fromEntity);
     }
 

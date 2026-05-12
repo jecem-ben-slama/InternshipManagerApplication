@@ -45,6 +45,14 @@ public interface AffectationRepository extends JpaRepository<Affectation, Long> 
     Page<Affectation> findByDepartmentAndAnneeUniversitaire(@Param("dept") DepartmentType dept,
             @Param("year") AcademicYear year, Pageable pageable);
 
+    @Query(value = "SELECT a FROM Affectation a " +
+            "JOIN FETCH a.groupe g " +
+            "JOIN FETCH g.membres " +
+            "JOIN FETCH a.encadrant " +
+            "JOIN FETCH a.sujet " +
+            "WHERE a.anneeUniversitaire = :year", countQuery = "SELECT COUNT(a) FROM Affectation a WHERE a.anneeUniversitaire = :year")
+    Page<Affectation> findByAnneeUniversitaire(@Param("year") AcademicYear year, Pageable pageable);
+
     // 5. Dynamic Quota counting for Teacher Workload
     long countByEncadrantAndAnneeUniversitaire(Enseignant teacher, AcademicYear year);
 

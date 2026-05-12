@@ -2,6 +2,7 @@ package com.iit.internship_manager.services;
 
 import com.iit.internship_manager.domain.enums.CreatorRole;
 import com.iit.internship_manager.domain.enums.ErrorCode;
+import com.iit.internship_manager.domain.enums.TaskStatus;
 import com.iit.internship_manager.domain.exceptions.DomainException;
 import com.iit.internship_manager.domain.models.*;
 import com.iit.internship_manager.repositories.AffectationRepository;
@@ -37,6 +38,7 @@ public class TaskServiceImpl implements ITaskService {
 
         // Centralized security check
         validateAccess(affectation, currentUser.getEmail());
+        validateTeacherCreator(affectation, currentUser);
 
         // Determine role for task creation
         CreatorRole role = affectation.getEncadrant().getEmail().equals(currentUser.getEmail())
@@ -50,7 +52,7 @@ public class TaskServiceImpl implements ITaskService {
                 .creePar(role)
                 .creatorName(currentUser.getNom() + " " + currentUser.getPrenom())
                 .affectation(affectation)
-                .completed(false)
+                .status(TaskStatus.PENDING)
                 .build();
 
         Task savedTask = taskRepository.save(task);
@@ -72,13 +74,18 @@ public class TaskServiceImpl implements ITaskService {
         // Centralized security check
         validateAccess(affectation, currentUser.getEmail());
 
-        return taskRepository.findByAffectationId(affectationId, pageable)
+        boolean isTeacher = affectation.getEncadrant().getEmail().equals(currentUser.getEmail());
+        Page<Task> page = isTeacher
+                ? taskRepository.findByAffectationId(affectationId, pageable)
+                : taskRepository.findByAffectationIdAndCreePar(affectationId, CreatorRole.ENSEIGNANT, pageable);
+
+        return page
                 .map(this::mapToResponseDTO);
     }
 
     @Override
     @Transactional
-    public TaskResponseDTO updateTaskStatus(Long taskId, boolean completed) {
+    public TaskResponseDTO updateTaskStatus(Long taskId, TaskStatus status) {
         Utilisateur currentUser = securityContext.getCurrentUser();
 
         // Check if Task exists
@@ -97,7 +104,7 @@ public class TaskServiceImpl implements ITaskService {
             throw new DomainException(ErrorCode.FORBIDDEN, "Only assigned students can mark tasks as completed.");
         }
 
-        task.setCompleted(completed);
+        task.setStatus(status);
         Task savedTask = taskRepository.save(task);
         TaskResponseDTO response = mapToResponseDTO(savedTask);
 
@@ -116,6 +123,7 @@ public class TaskServiceImpl implements ITaskService {
 
         // Centralized security check
         validateAccess(task.getAffectation(), currentUser.getEmail());
+        validateTeacherCreator(task.getAffectation(), currentUser);
 
         taskRepository.delete(task);
     }
@@ -132,11 +140,16 @@ public class TaskServiceImpl implements ITaskService {
         // Centralized security check
         validateAccess(affectation, currentUser.getEmail());
 
-        long total = taskRepository.countByAffectationId(affectationId);
+        boolean isTeacher = affectation.getEncadrant().getEmail().equals(currentUser.getEmail());
+        long total = isTeacher
+                ? taskRepository.countByAffectationId(affectationId)
+                : taskRepository.countByAffectationIdAndCreePar(affectationId, CreatorRole.ENSEIGNANT);
         if (total == 0)
             return 0.0;
 
-        long completed = taskRepository.countByAffectationIdAndCompletedTrue(affectationId);
+        long completed = isTeacher
+                ? taskRepository.countByAffectationIdAndCompletedTrue(affectationId)
+                : taskRepository.countByAffectationIdAndCreeParAndCompletedTrue(affectationId, CreatorRole.ENSEIGNANT);
         return (double) completed / total * 100;
     }
 
@@ -153,11 +166,18 @@ public class TaskServiceImpl implements ITaskService {
         }
     }
 
+    private void validateTeacherCreator(Affectation affectation, Utilisateur currentUser) {
+        if (!affectation.getEncadrant().getEmail().equals(currentUser.getEmail())) {
+            throw new DomainException(ErrorCode.FORBIDDEN, "Only the assigned teacher can create or delete tasks.");
+        }
+    }
+
     private TaskResponseDTO mapToResponseDTO(Task task) {
         return TaskResponseDTO.builder()
                 .id(task.getId())
                 .description(task.getDescription())
                 .completed(task.isCompleted())
+                .status(task.getStatus())
                 .deadline(task.getDeadline())
                 .priorite(task.getPriorite())
                 .creePar(task.getCreePar())

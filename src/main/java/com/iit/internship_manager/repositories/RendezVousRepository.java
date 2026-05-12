@@ -1,6 +1,7 @@
 package com.iit.internship_manager.repositories;
 
 import com.iit.internship_manager.domain.enums.MeetingStatus;
+import com.iit.internship_manager.domain.enums.CreatorRole;
 import com.iit.internship_manager.domain.models.RendezVous;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -17,6 +18,7 @@ public interface RendezVousRepository extends JpaRepository<RendezVous, Long> {
 
     // 1. Paginated history of all meetings for an internship
     Page<RendezVous> findByAffectationId(Long affectationId, Pageable pageable);
+    Page<RendezVous> findByAffectationIdAndCreePar(Long affectationId, CreatorRole creePar, Pageable pageable);
 
     // 2. Paginated upcoming meetings
     Page<RendezVous> findByAffectationIdAndDateHeureAfter(Long affectationId, LocalDateTime now, Pageable pageable);

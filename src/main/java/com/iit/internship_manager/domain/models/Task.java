@@ -25,6 +25,10 @@ public class Task {
     @Builder.Default
     private boolean completed = false;
 
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    private TaskStatus status = TaskStatus.PENDING;
+
     // 2. Deadline is naturally optional (can be null in DB)
     private LocalDateTime deadline;
 
@@ -49,5 +53,15 @@ public class Task {
         if (this.createdAt == null) {
             this.createdAt = LocalDateTime.now();
         }
+        syncCompletedFlag();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        syncCompletedFlag();
+    }
+
+    private void syncCompletedFlag() {
+        this.completed = this.status == TaskStatus.COMPLETED;
     }
 }

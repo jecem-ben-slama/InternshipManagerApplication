@@ -10,7 +10,11 @@ public interface IUserService {
 
     UserResponseDTO findById(Long id);
 
+    Page<UserResponseDTO> findAllUsers(int page, int size);
+
     Page<UserResponseDTO> findAllActive(int page, int size);
+
+    Page<UserResponseDTO> findAllInactive(int page, int size);
 
     void delete(Long id);
 

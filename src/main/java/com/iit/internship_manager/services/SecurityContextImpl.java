@@ -52,8 +52,7 @@ public class SecurityContextImpl implements ISecurityContext {
 
     @Override
     public boolean isAdmin() {
-        // Check if the Spring Security context contains the ADMIN role
-        return hasRole("ADMIN");
+        return hasRole("ADMIN_IT");
     }
 
     @Override

@@ -2,6 +2,7 @@ package com.iit.internship_manager.web.dtos;
 
 import com.iit.internship_manager.domain.enums.Priority;
 import com.iit.internship_manager.domain.enums.CreatorRole;
+import com.iit.internship_manager.domain.enums.TaskStatus;
 import lombok.*;
 import java.time.LocalDateTime;
 
@@ -13,6 +14,7 @@ public class TaskResponseDTO {
     private Long id;
     private String description;
     private boolean completed;
+    private TaskStatus status;
     private LocalDateTime deadline;
     private Priority priorite;
     private CreatorRole creePar;

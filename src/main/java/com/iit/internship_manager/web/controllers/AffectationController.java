@@ -47,6 +47,22 @@ public class AffectationController {
                 return ResponseEntity.ok(ApiResponse.success("Affectations de l'année en cours récupérées.", result));
         }
 
+        @GetMapping("/all")
+        @PreAuthorize("hasAnyRole('ETUDIANT', 'ENSEIGNANT', 'ADMIN_IT')")
+        public ResponseEntity<ApiResponse<Page<AffectationResponseDTO>>> getAllAffectations(
+                        @RequestParam(defaultValue = "0") int page,
+                        @RequestParam(defaultValue = "10") int size) {
+                return getMyAffectations(page, size);
+        }
+
+        @GetMapping("/{id}")
+        @PreAuthorize("hasAnyRole('ETUDIANT', 'ENSEIGNANT', 'ADMIN_IT')")
+        public ResponseEntity<ApiResponse<AffectationResponseDTO>> getById(@PathVariable Long id) {
+                return ResponseEntity.ok(ApiResponse.success(
+                                "Affectation recuperee.",
+                                affectationService.getById(id)));
+        }
+
         /**
          * ARCHIVE VIEW: Get affectations for a specific year (teachers & admins only).
          */
@@ -67,7 +83,7 @@ public class AffectationController {
          * field) internally.
          */
         @GetMapping("/unassigned")
-        @PreAuthorize("hasRole('ENSEIGNANT')")
+        @PreAuthorize("hasAnyRole('ENSEIGNANT', 'ADMIN_IT')")
         public ResponseEntity<ApiResponse<Page<EtudiantResponseDTO>>> getUnassignedStudents(
                         @RequestParam(defaultValue = "0") int page,
                         @RequestParam(defaultValue = "10") int size) {
