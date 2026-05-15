@@ -20,7 +20,6 @@ public class EtudiantResponseDTO {
     private String nom;
     private String prenom;
     private String email;
-    private String cin;
     private String matricule;
     private DepartmentType department;
     private Filiere filiere;
@@ -36,7 +35,6 @@ public class EtudiantResponseDTO {
                 .nom(student.getNom())
                 .prenom(student.getPrenom())
                 .email(student.getEmail())
-                .cin(student.getCin())
                 .matricule(student.getMatricule())
                 .department(student.getDepartment())
                 .filiere(student.getFiliere())

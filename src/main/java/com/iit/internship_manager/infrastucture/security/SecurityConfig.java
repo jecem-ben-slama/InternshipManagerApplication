@@ -45,6 +45,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/auth/login").permitAll()
                         .requestMatchers("/ws-endpoint/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/users/*/photo").permitAll()
 
                         // 4. All other requests must be authenticated
                         .anyRequest().authenticated())

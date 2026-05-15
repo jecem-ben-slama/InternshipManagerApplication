@@ -27,6 +27,7 @@ public class UserResponseDTO {
     private boolean active;
     private String userType;
     private DepartmentType department; // Added centralized field
+    private boolean hasProfilePhoto;
 
     // Student specific fields
     private String matricule;
@@ -49,7 +50,8 @@ public class UserResponseDTO {
                 .prenom(user.getPrenom())
                 .role(user.getRole())
                 .active(user.isActive())
-                .department(user.getDepartment()); // Map the new centralized field
+                .department(user.getDepartment())
+                .hasProfilePhoto(user.getProfilePhoto() != null && !user.getProfilePhoto().isBlank()); // Map the new centralized field
 
         if (user instanceof Etudiant etudiant) {
             builder.userType("STUDENT")

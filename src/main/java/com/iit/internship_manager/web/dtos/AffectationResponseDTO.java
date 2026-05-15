@@ -15,8 +15,11 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class AffectationResponseDTO {
     private Long id;
+    private String groupeNom;
     private String sujetTitre;
+    private String sujetDescription;
     private String encadrantNom;
+    private String encadrantEmail;
     private Long candidatureId; // The key to the chat history!
     private LocalDateTime dateAffectation;
     private String status;
@@ -26,8 +29,13 @@ public class AffectationResponseDTO {
     public static AffectationResponseDTO fromEntity(Affectation affectation) {
         return AffectationResponseDTO.builder()
                 .id(affectation.getId())
+                .groupeNom(affectation.getGroupe() != null && affectation.getGroupe().getNom() != null
+                        ? affectation.getGroupe().getNom()
+                        : "Groupe " + affectation.getId())
                 .sujetTitre(affectation.getSujet().getTitre())
+                .sujetDescription(affectation.getSujet().getDescription())
                 .encadrantNom(affectation.getEncadrant().getNom())
+                .encadrantEmail(affectation.getEncadrant().getEmail())
                 .candidatureId(affectation.getOriginalCandidature().getId())
                 .dateAffectation(affectation.getDateAffectation())
                 .status(affectation.getStatus())

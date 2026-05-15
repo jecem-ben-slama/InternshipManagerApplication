@@ -8,10 +8,17 @@ import com.iit.internship_manager.web.dtos.updateUser.UpdateRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.core.io.Resource;
+import org.springframework.http.CacheControl;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.concurrent.TimeUnit;
 
 @RestController
 @RequestMapping("/api/users")
@@ -26,6 +33,25 @@ public class UserController {
     public ResponseEntity<ApiResponse<UserResponseDTO>> getCurrentUser() {
         UserResponseDTO profile = userService.getCurrentUserProfile();
         return ResponseEntity.ok(ApiResponse.success("Profil recupere avec succes", profile));
+    }
+
+    @PostMapping(value = "/me/photo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<UserResponseDTO>> uploadProfilePhoto(
+            @RequestParam("file") MultipartFile file) {
+        UserResponseDTO updated = userUpdateService.uploadCurrentUserProfilePhoto(file);
+        return ResponseEntity.ok(ApiResponse.success("Photo de profil mise a jour avec succes", updated));
+    }
+
+    @GetMapping("/{id}/photo")
+    public ResponseEntity<Resource> getProfilePhoto(@PathVariable Long id) {
+        Resource resource = userService.loadProfilePhoto(id);
+        String contentType = userService.getProfilePhotoContentType(id);
+
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noCache().mustRevalidate().cachePrivate().sMaxAge(0, TimeUnit.SECONDS))
+                .header(HttpHeaders.PRAGMA, "no-cache")
+                .contentType(MediaType.parseMediaType(contentType))
+                .body(resource);
     }
 
     @PutMapping("/{id}")
