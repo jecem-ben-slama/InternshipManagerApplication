@@ -43,4 +43,23 @@ boolean existsByTeacherEmailAndDateBetween(
     @Param("end") LocalDateTime end
 );
 
+    @Query("""
+        SELECT DISTINCT r
+        FROM RendezVous r
+        JOIN FETCH r.affectation a
+        JOIN FETCH a.encadrant e
+        JOIN FETCH a.groupe g
+        LEFT JOIN FETCH g.membres m
+        WHERE r.status = :status
+          AND r.reminder24hSent = false
+          AND r.dateHeure > :from
+          AND r.dateHeure <= :to
+        ORDER BY r.dateHeure ASC
+        """)
+    List<RendezVous> findMeetingsPending24HourReminder(
+            @Param("status") MeetingStatus status,
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to
+    );
+
 }

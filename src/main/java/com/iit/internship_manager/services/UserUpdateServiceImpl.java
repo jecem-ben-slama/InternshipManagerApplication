@@ -40,6 +40,8 @@ public class UserUpdateServiceImpl implements IUserUpdateService {
         // 2. Validate Permission (Self or Admin)
         validateUpdatePermission(targetUser);
 
+        boolean selfUpdate = targetUser.getId().equals(securityContext.getCurrentUserId());
+
         // 3. Map Common Fields (Base Utilisateur fields)
         targetUser.setNom(dto.getNom());
         targetUser.setPrenom(dto.getPrenom());
@@ -48,7 +50,11 @@ public class UserUpdateServiceImpl implements IUserUpdateService {
         // NEW: Centralized mapping for the department
         targetUser.setDepartment(dto.getDepartment());
 
-        if (StringUtils.hasText(dto.getPassword())) {
+        if (!selfUpdate && StringUtils.hasText(dto.getPassword())) {
+            throw new DomainException(ErrorCode.FORBIDDEN, "Le mot de passe ne peut etre modifie que par son proprietaire depuis son profil.");
+        }
+
+        if (selfUpdate && StringUtils.hasText(dto.getPassword())) {
             targetUser.setPassword(passwordEncoder.encode(dto.getPassword()));
         }
 

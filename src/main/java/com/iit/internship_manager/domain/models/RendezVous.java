@@ -34,6 +34,11 @@ public class RendezVous {
     @Builder.Default
     private boolean estConfirme = false;
 
+    @Builder.Default
+    private boolean reminder24hSent = false;
+
+    private LocalDateTime reminder24hSentAt;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "affectation_id")
     private Affectation affectation;
