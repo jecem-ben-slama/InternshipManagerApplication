@@ -15,27 +15,29 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/academic-years")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ADMIN_IT')")
 public class AcademicYearController {
 
     private final AcademicYearService academicYearService;
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN_IT', 'ENSEIGNANT')")
     public ResponseEntity<ApiResponse<List<AcademicYearResponseDTO>>> getAllYears() {
         return ResponseEntity.ok(ApiResponse.success(
-                "Années universitaires récupérées avec succès",
+                "Annees universitaires recuperees avec succes",
                 academicYearService.getAllYears()));
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN_IT')")
     public ResponseEntity<ApiResponse<Void>> createYear(@Valid @RequestBody AcademicYearCreateRequest request) {
         academicYearService.createYear(request.getId());
-        return ResponseEntity.ok(ApiResponse.success("Année universitaire créée avec succès", null));
+        return ResponseEntity.ok(ApiResponse.success("Annee universitaire creee avec succes", null));
     }
 
     @PostMapping("/{yearId}/activate")
+    @PreAuthorize("hasRole('ADMIN_IT')")
     public ResponseEntity<ApiResponse<Void>> activateYear(@PathVariable String yearId) {
         academicYearService.activateYear(yearId);
-        return ResponseEntity.ok(ApiResponse.success("Année universitaire activée avec succès", null));
+        return ResponseEntity.ok(ApiResponse.success("Annee universitaire activee avec succes", null));
     }
 }
