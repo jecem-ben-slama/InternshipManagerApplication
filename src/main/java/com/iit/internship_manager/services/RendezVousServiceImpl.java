@@ -49,6 +49,7 @@ public class RendezVousServiceImpl implements IRendezVousService {
         }
 
         if (newStatus == MeetingStatus.CONFIRMED) {
+            validateResponder(rdv, currentUser);
             validateNotCreator(rdv, currentUser);
 
             // Logic: Check for conflicts only against active (Pending/Confirmed) meetings
@@ -57,7 +58,12 @@ public class RendezVousServiceImpl implements IRendezVousService {
             byte[] inviteIcal = ICalUtils.generateMeetingInvite(rdv);
             sendNotification(rdv, "meeting-confirmed", "Meeting Confirmed: " + rdv.getObjet(), inviteIcal, currentUser);
 
+        } else if (newStatus == MeetingStatus.REFUSED) {
+            validateResponder(rdv, currentUser);
+            validateNotCreator(rdv, currentUser);
+
         } else if (newStatus == MeetingStatus.CANCELLED) {
+            validateTeacherCreator(rdv.getAffectation(), currentUser);
             if (rdv.getStatus() != MeetingStatus.CONFIRMED) {
                 throw new DomainException(ErrorCode.CONFLICT, "Only confirmed meetings can be cancelled.");
             }
@@ -144,6 +150,7 @@ public class RendezVousServiceImpl implements IRendezVousService {
                 .orElseThrow(() -> new DomainException(ErrorCode.RESOURCE_NOT_FOUND, "Meeting not found"));
 
         validateAccess(rdv.getAffectation(), currentUser.getEmail());
+        validateTeacherCreator(rdv.getAffectation(), currentUser);
 
         if (rdv.getStatus() == MeetingStatus.CONFIRMED) {
             throw new DomainException(ErrorCode.CONFLICT, "Please cancel the meeting before deleting it.");
@@ -164,6 +171,26 @@ public class RendezVousServiceImpl implements IRendezVousService {
 
         if (isTeacherCreator || isStudentCreator) {
             throw new DomainException(ErrorCode.FORBIDDEN, "You cannot accept a meeting you created.");
+        }
+    }
+
+    private void validateTeacherCreator(Affectation aff, Utilisateur currentUser) {
+        if (!aff.getEncadrant().getEmail().equals(currentUser.getEmail())) {
+            throw new DomainException(ErrorCode.FORBIDDEN, "Only the assigned teacher can create or delete meetings.");
+        }
+    }
+
+    private void validateResponder(RendezVous rdv, Utilisateur currentUser) {
+        boolean isStudent = rdv.getAffectation().getGroupe().getMembres().stream()
+                .anyMatch(m -> m.getEmail().equals(currentUser.getEmail()));
+        boolean isTeacher = rdv.getAffectation().getEncadrant().getEmail().equals(currentUser.getEmail());
+
+        boolean canRespondAsStudent = isStudent && rdv.getCreePar() == CreatorRole.ENSEIGNANT;
+        boolean canRespondAsTeacher = isTeacher && rdv.getCreePar() == CreatorRole.ETUDIANT;
+
+        if (!canRespondAsStudent && !canRespondAsTeacher) {
+            throw new DomainException(ErrorCode.FORBIDDEN,
+                    "Only the opposite side can answer a meeting request.");
         }
     }
 
@@ -199,7 +226,9 @@ public class RendezVousServiceImpl implements IRendezVousService {
         Affectation aff = affectationRepository.findById(affectationId)
                 .orElseThrow(() -> new DomainException(ErrorCode.RESOURCE_NOT_FOUND, "Affectation not found"));
 
-        validateAccess(aff, securityContext.getCurrentUser().getEmail());
+        Utilisateur currentUser = securityContext.getCurrentUser();
+        validateAccess(aff, currentUser.getEmail());
+
         return rendezVousRepository.findByAffectationId(affectationId, pageable).map(this::mapToDTO);
     }
 }

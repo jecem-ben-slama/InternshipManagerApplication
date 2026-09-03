@@ -1,6 +1,7 @@
 package com.iit.internship_manager.services.interfaces;
 
 import org.springframework.data.domain.Page;
+import org.springframework.core.io.Resource;
 
 import com.iit.internship_manager.domain.enums.DepartmentType;
 import com.iit.internship_manager.web.dtos.UserResponseDTO;
@@ -10,7 +11,11 @@ public interface IUserService {
 
     UserResponseDTO findById(Long id);
 
+    Page<UserResponseDTO> findAllUsers(int page, int size);
+
     Page<UserResponseDTO> findAllActive(int page, int size);
+
+    Page<UserResponseDTO> findAllInactive(int page, int size);
 
     void delete(Long id);
 
@@ -20,4 +25,6 @@ public interface IUserService {
     Page<UserResponseDTO> getTeachersByMyDepartment(int page, int size);
     Page<UserResponseDTO> getStudentsByMyDepartment(int page, int size);
     Page<UserResponseDTO> findAllByDepartment(DepartmentType department, int page, int size);
+    Resource loadProfilePhoto(Long userId);
+    String getProfilePhotoContentType(Long userId);
 }

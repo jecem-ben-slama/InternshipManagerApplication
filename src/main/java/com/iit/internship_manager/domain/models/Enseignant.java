@@ -21,7 +21,7 @@ public class Enseignant extends Utilisateur {
     private int quotaAnnuel;
 
     // The number of internships currently being managed/supervised
-    @Column(name = "encadrements_actuels")
+    @Column(name = "encadrements_actuels", nullable = false)
     private int encadrementsActuels = 0;
 
     @ElementCollection(targetClass = SpecialiteType.class)

@@ -27,6 +27,7 @@ public class UserResponseDTO {
     private boolean active;
     private String userType;
     private DepartmentType department; // Added centralized field
+    private boolean hasProfilePhoto;
 
     // Student specific fields
     private String matricule;
@@ -36,6 +37,7 @@ public class UserResponseDTO {
     // Teacher specific fields
     private boolean isResponsablePFE;
     private Set<SpecialiteType> specialites;
+    private Integer quotaAnnuel;
 
     /**
      * Converts a Utilisateur entity into a UserResponseDTO based on its real type.
@@ -48,7 +50,8 @@ public class UserResponseDTO {
                 .prenom(user.getPrenom())
                 .role(user.getRole())
                 .active(user.isActive())
-                .department(user.getDepartment()); // Map the new centralized field
+                .department(user.getDepartment())
+                .hasProfilePhoto(user.getProfilePhoto() != null && !user.getProfilePhoto().isBlank()); // Map the new centralized field
 
         if (user instanceof Etudiant etudiant) {
             builder.userType("STUDENT")
@@ -58,7 +61,8 @@ public class UserResponseDTO {
         } else if (user instanceof Enseignant enseignant) {
             builder.userType("TEACHER")
                     .isResponsablePFE(enseignant.isResponsablePFE())
-                    .specialites(enseignant.getSpecialites());
+                    .specialites(enseignant.getSpecialites())
+                    .quotaAnnuel(enseignant.getQuotaAnnuel());
         } else if (user instanceof AdminIT) {
             builder.userType("ADMIN");
         }

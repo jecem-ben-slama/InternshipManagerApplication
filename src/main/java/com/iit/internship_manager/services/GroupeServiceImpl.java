@@ -5,6 +5,7 @@ import com.iit.internship_manager.domain.exceptions.DomainException;
 import com.iit.internship_manager.domain.exceptions.ResourceNotFoundException;
 import com.iit.internship_manager.domain.models.Etudiant;
 import com.iit.internship_manager.domain.models.Groupe;
+import com.iit.internship_manager.repositories.AffectationRepository;
 import com.iit.internship_manager.repositories.GroupeRepository;
 import com.iit.internship_manager.repositories.UserRepository;
 import com.iit.internship_manager.services.interfaces.IGroupeService;
@@ -22,6 +23,7 @@ public class GroupeServiceImpl implements IGroupeService {
 
     private final GroupeRepository groupeRepository;
     private final UserRepository userRepository;
+    private final AffectationRepository affectationRepository;
 
     @Override
     @Transactional
@@ -70,7 +72,7 @@ public class GroupeServiceImpl implements IGroupeService {
                     .sorted()
                     .toList();
 
-            if (existingIds.equals(targetIds)) {
+            if (existingIds.equals(targetIds) && affectationRepository.findByGroupeId(group.getId()).isEmpty()) {
                 return group;
             }
         }

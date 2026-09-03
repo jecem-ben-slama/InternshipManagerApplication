@@ -33,6 +33,11 @@ public class SubjectServiceImpl implements ISubjectService {
     @Transactional(readOnly = true)
     public Page<SujetResponseDTO> findAll(Pageable pageable) {
         AcademicYear currentYear = currentYearProvider.getCurrent();
+        if (securityContext.isAdmin()) {
+            return subjectRepository.findAll(currentYear, pageable)
+                    .map(SujetResponseDTO::fromEntity);
+        }
+
         DepartmentType userDept = resolveUserDepartment();
 
         return subjectRepository.findByDepartmentAndAnneeUniversitaire(userDept, currentYear, pageable)
@@ -57,6 +62,11 @@ public class SubjectServiceImpl implements ISubjectService {
                 .orElseThrow(
                         () -> new ResourceNotFoundException("Année universitaire " + yearId + " introuvable", null));
 
+        if (securityContext.isAdmin()) {
+            return subjectRepository.findAll(year, pageable)
+                    .map(SujetResponseDTO::fromEntity);
+        }
+
         DepartmentType userDept = resolveUserDepartment();
         return subjectRepository.findByDepartmentAndAnneeUniversitaire(userDept, year, pageable)
                 .map(SujetResponseDTO::fromEntity);
@@ -65,9 +75,13 @@ public class SubjectServiceImpl implements ISubjectService {
     @Override
     @Transactional(readOnly = true)
     public Page<SujetResponseDTO> getSubjectsByStatus(SujetStatus status, Pageable pageable) {
-        DepartmentType userDept = resolveUserDepartment();
         AcademicYear currentYear = currentYearProvider.getCurrent();
+        if (securityContext.isAdmin()) {
+            return subjectRepository.findByStatutAndAnneeUniversitaire(status, currentYear, pageable)
+                    .map(SujetResponseDTO::fromEntity);
+        }
 
+        DepartmentType userDept = resolveUserDepartment();
         return subjectRepository.findByStatutAndDepartmentAndAnneeUniversitaire(
                 status, userDept, currentYear, pageable)
                 .map(SujetResponseDTO::fromEntity);

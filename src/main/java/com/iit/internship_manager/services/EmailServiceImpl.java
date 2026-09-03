@@ -1,5 +1,6 @@
 package com.iit.internship_manager.services;
 
+import com.iit.internship_manager.infrastucture.config.AppMailProperties;
 import com.iit.internship_manager.services.interfaces.IEmailService;
 import jakarta.activation.DataHandler;
 import jakarta.mail.internet.MimeBodyPart;
@@ -23,6 +24,7 @@ public class EmailServiceImpl implements IEmailService {
     private static final String TEMPLATE_PREFIX = "emails/";
     private final JavaMailSender mailSender;
     private final TemplateEngine templateEngine;
+    private final AppMailProperties appMailProperties;
 
     @Async("emailTaskExecutor") // Reference a specific executor if defined
     @Override
@@ -40,7 +42,7 @@ public class EmailServiceImpl implements IEmailService {
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
             helper.setTo(to);
             helper.setSubject(subject);
-            helper.setFrom("benslemajecem@gmail.com");
+            helper.setFrom(appMailProperties.getFrom());
 
             // 2. Create the Multipart container
             MimeMultipart multipart = new MimeMultipart("mixed");

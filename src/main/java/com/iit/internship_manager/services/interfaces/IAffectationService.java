@@ -13,6 +13,8 @@ public interface IAffectationService {
     // Returns a page of affectations based on the logged-in user's role
     Page<AffectationResponseDTO> getMyAffectations(Pageable pageable);
 
+    AffectationResponseDTO getById(Long affectationId);
+
     Page<AffectationResponseDTO> getAffectationsByYear(String yearId, Pageable pageable);
     // Returns a page of students who haven't been assigned to a project yet
     Page<Etudiant> getUnassignedStudents(Pageable pageable);

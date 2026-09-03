@@ -4,6 +4,7 @@ package com.iit.internship_manager.repositories;
 import com.iit.internship_manager.domain.enums.DepartmentType;
 import com.iit.internship_manager.domain.models.Enseignant;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.domain.Page;
@@ -18,6 +19,6 @@ public interface EnseignantRepository extends JpaRepository<Enseignant, Long> {
     Page<Enseignant> findByDepartmentAndActiveTrue(DepartmentType department, Pageable pageable);
 
     @Query("SELECT e FROM Enseignant e WHERE e.responsablePFE = true AND e.department = :dept")
-    Optional<Enseignant> findResponsableByDepartment(@Param("dept") DepartmentType dept);
+    List<Enseignant> findResponsablesByDepartment(@Param("dept") DepartmentType dept);
 
 }

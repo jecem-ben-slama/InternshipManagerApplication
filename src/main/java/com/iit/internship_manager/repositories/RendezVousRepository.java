@@ -1,6 +1,7 @@
 package com.iit.internship_manager.repositories;
 
 import com.iit.internship_manager.domain.enums.MeetingStatus;
+import com.iit.internship_manager.domain.enums.CreatorRole;
 import com.iit.internship_manager.domain.models.RendezVous;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -17,6 +18,7 @@ public interface RendezVousRepository extends JpaRepository<RendezVous, Long> {
 
     // 1. Paginated history of all meetings for an internship
     Page<RendezVous> findByAffectationId(Long affectationId, Pageable pageable);
+    Page<RendezVous> findByAffectationIdAndCreePar(Long affectationId, CreatorRole creePar, Pageable pageable);
 
     // 2. Paginated upcoming meetings
     Page<RendezVous> findByAffectationIdAndDateHeureAfter(Long affectationId, LocalDateTime now, Pageable pageable);
@@ -40,5 +42,24 @@ boolean existsByTeacherEmailAndDateBetween(
     @Param("start") LocalDateTime start, 
     @Param("end") LocalDateTime end
 );
+
+    @Query("""
+        SELECT DISTINCT r
+        FROM RendezVous r
+        JOIN FETCH r.affectation a
+        JOIN FETCH a.encadrant e
+        JOIN FETCH a.groupe g
+        LEFT JOIN FETCH g.membres m
+        WHERE r.status = :status
+          AND r.reminder24hSent = false
+          AND r.dateHeure > :from
+          AND r.dateHeure <= :to
+        ORDER BY r.dateHeure ASC
+        """)
+    List<RendezVous> findMeetingsPending24HourReminder(
+            @Param("status") MeetingStatus status,
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to
+    );
 
 }

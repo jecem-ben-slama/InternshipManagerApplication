@@ -1,8 +1,14 @@
 package com.iit.internship_manager.web.dtos;
 
+import com.iit.internship_manager.domain.enums.AnneeEtude;
+import com.iit.internship_manager.domain.enums.DepartmentType;
 import com.iit.internship_manager.domain.enums.Filiere;
 import com.iit.internship_manager.domain.models.Etudiant;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Getter
 @Setter
@@ -14,22 +20,25 @@ public class EtudiantResponseDTO {
     private String nom;
     private String prenom;
     private String email;
-    private String cin;
-    private Filiere filiere; // e.g., "Génie Informatique", "Génie Civil"
+    private String matricule;
+    private DepartmentType department;
+    private Filiere filiere;
+    private AnneeEtude anneeEtude;
 
-    /**
-     * Static factory method to convert the Entity to a DTO.
-     */
     public static EtudiantResponseDTO fromEntity(Etudiant student) {
-        if (student == null)
+        if (student == null) {
             return null;
+        }
 
         return EtudiantResponseDTO.builder()
                 .id(student.getId())
                 .nom(student.getNom())
                 .prenom(student.getPrenom())
                 .email(student.getEmail())
+                .matricule(student.getMatricule())
+                .department(student.getDepartment())
                 .filiere(student.getFiliere())
+                .anneeEtude(student.getAnneeEtude())
                 .build();
     }
 }

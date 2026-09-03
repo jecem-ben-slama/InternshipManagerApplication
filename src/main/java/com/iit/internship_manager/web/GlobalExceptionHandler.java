@@ -14,7 +14,9 @@ import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Map;
 
@@ -69,6 +71,13 @@ public class GlobalExceptionHandler {
                 return buildErrorResponse(ErrorCode.TYPE_MISMATCH, detail);
         }
 
+        @ExceptionHandler(IllegalArgumentException.class)
+        public ResponseEntity<ApiErrorResponse> handleIllegalArgument(IllegalArgumentException ex) {
+                return buildErrorResponse(
+                                ErrorCode.BUSINESS_RULE_ERROR,
+                                ex.getMessage());
+        }
+
         @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
         public ResponseEntity<ApiErrorResponse> handleMalformedJson(Exception ex) {
                 return buildErrorResponse(
@@ -93,6 +102,13 @@ public class GlobalExceptionHandler {
                                 "Cette opération n'est pas autorisée pour cette route.");
         }
 
+        @ExceptionHandler(NoResourceFoundException.class)
+        public ResponseEntity<ApiErrorResponse> handleNoResourceFound(NoResourceFoundException ex) {
+                return buildErrorResponse(
+                                ErrorCode.RESOURCE_NOT_FOUND,
+                                "Route introuvable: " + ex.getResourcePath());
+        }
+
         // --- 4. INFRA ---
         @ExceptionHandler(org.springframework.dao.DataAccessResourceFailureException.class)
         public ResponseEntity<ApiErrorResponse> handleDatabaseDown(Exception ex) {
@@ -111,8 +127,8 @@ public class GlobalExceptionHandler {
 
         // --- 5. SYSTEM ---
         @ExceptionHandler(Exception.class)
-        public ResponseEntity<ApiErrorResponse> handleGeneralError(Exception ex) {
-                log.error("Unexpected error", ex);
+        public ResponseEntity<ApiErrorResponse> handleGeneralError(Exception ex, HttpServletRequest request) {
+                log.error("Unexpected error on {} {}", request.getMethod(), request.getRequestURI(), ex);
                 return buildErrorResponse(
                                 ErrorCode.INTERNAL_ERROR,
                                 "Une erreur inattendue est survenue.");

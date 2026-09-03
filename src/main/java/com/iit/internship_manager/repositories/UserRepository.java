@@ -39,6 +39,12 @@ public interface UserRepository extends JpaRepository<Utilisateur, Long> {
 
         Page<Utilisateur> findAllByDepartmentAndActiveTrue(Pageable pageable, DepartmentType department);
 
+        Page<Utilisateur> findAllByActiveFalse(Pageable pageable);
+
+        Page<Utilisateur> findAllByDepartmentAndActiveFalse(Pageable pageable, DepartmentType department);
+
+        Page<Utilisateur> findAllByDepartment(Pageable pageable, DepartmentType department);
+
         // --- Teacher Specific Queries (Admin/Global) ---
 
         @Query("SELECT u FROM Enseignant u WHERE u.active = true")

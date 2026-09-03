@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Rappel rendez-vous IIT</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #f4f7fb;
+            font-family: Arial, sans-serif;
+            color: #16325c;
+        }
+        .email-wrapper {
+            width: 100%;
+            padding: 32px 0;
+        }
+        .email-content {
+            max-width: 680px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 18px;
+            overflow: hidden;
+            box-shadow: 0 16px 36px rgba(22, 50, 92, 0.1);
+        }
+        .header {
+            padding: 28px 32px;
+            background: linear-gradient(135deg, #0f3f78 0%, #114b91 100%);
+            color: #ffffff;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .header p {
+            margin: 8px 0 0;
+            color: rgba(255,255,255,0.82);
+            font-size: 14px;
+        }
+        .body {
+            padding: 30px 32px 34px;
+        }
+        .lead {
+            font-size: 16px;
+            line-height: 1.7;
+            margin: 0 0 20px;
+        }
+        .meeting-card {
+            border: 1px solid #dbe7f6;
+            border-radius: 16px;
+            background: #f8fbff;
+            padding: 20px 22px;
+            margin-bottom: 24px;
+        }
+        .meeting-card h2 {
+            margin: 0 0 16px;
+            font-size: 20px;
+            color: #0f3f78;
+        }
+        .detail-row {
+            margin-bottom: 10px;
+            font-size: 15px;
+            line-height: 1.6;
+        }
+        .detail-row strong {
+            color: #0a315b;
+        }
+        .note {
+            margin: 0;
+            font-size: 14px;
+            line-height: 1.7;
+            color: #4a6286;
+        }
+        .footer {
+            padding: 22px 32px 28px;
+            border-top: 1px solid #e7eef8;
+            color: #6a7f9f;
+            font-size: 13px;
+            line-height: 1.7;
+        }
+    </style>
+</head>
+<body>
+<div class="email-wrapper">
+    <div class="email-content">
+        <div class="header">
+            <h1>Rappel de rendez-vous</h1>
+            <p>IIT StageManager vous informe d'un rendez-vous prevu dans moins de <span th:text="${windowHours}">24</span> heures.</p>
+        </div>
+
+        <div class="body">
+            <p class="lead">
+                Bonjour,
+                <br><br>
+                Ceci est un rappel automatique concernant votre prochain rendez-vous de suivi de stage.
+            </p>
+
+            <div class="meeting-card">
+                <h2 th:text="${objet}">Objet du rendez-vous</h2>
+                <div class="detail-row"><strong>Date et heure :</strong> <span th:text="${date}">15/05/2026 10:00</span></div>
+                <div class="detail-row"><strong>Lieu :</strong> <span th:text="${lieu}">Salle B12</span></div>
+                <div class="detail-row"><strong>Encadrant :</strong> <span th:text="${teacherName}">Nom enseignant</span></div>
+                <div class="detail-row"><strong>Groupe :</strong> <span th:text="${groupName}">Nom groupe</span></div>
+            </div>
+
+            <p class="note">
+                Merci de verifier votre disponibilite et de preparer les elements utiles a l avancement du projet.
+            </p>
+        </div>
+
+        <div class="footer">
+            IIT StageManager<br>
+            Universite Nord Americaine Privee · Institut International de Technologie · Sfax
+        </div>
+    </div>
+</div>
+</body>
+</html>

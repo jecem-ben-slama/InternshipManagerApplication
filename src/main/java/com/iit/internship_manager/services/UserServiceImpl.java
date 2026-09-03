@@ -6,10 +6,12 @@ import com.iit.internship_manager.domain.exceptions.DomainException;
 import com.iit.internship_manager.domain.exceptions.ResourceNotFoundException;
 import com.iit.internship_manager.domain.models.Utilisateur;
 import com.iit.internship_manager.repositories.UserRepository;
+import com.iit.internship_manager.services.interfaces.IFileStorageService;
 import com.iit.internship_manager.services.interfaces.ISecurityContext;
 import com.iit.internship_manager.services.interfaces.IUserService;
 import com.iit.internship_manager.web.dtos.UserResponseDTO;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -22,6 +24,7 @@ public class UserServiceImpl implements IUserService {
 
     private final UserRepository userRepository;
     private final ISecurityContext securityContext;
+    private final IFileStorageService fileStorageService;
 
     @Override
     @Transactional(readOnly = true)
@@ -45,6 +48,20 @@ public class UserServiceImpl implements IUserService {
         }
 
         return UserResponseDTO.fromEntity(targetUser);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<UserResponseDTO> findAllUsers(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+
+        if (securityContext.hasRole("ADMIN_IT")) {
+            return userRepository.findAll(pageable).map(UserResponseDTO::fromEntity);
+        }
+
+        DepartmentType userDept = securityContext.getCurrentUser().getDepartment();
+        return userRepository.findAllByDepartment(pageable, userDept)
+                .map(UserResponseDTO::fromEntity);
     }
 
  @Override
@@ -93,6 +110,20 @@ public Page<UserResponseDTO> getStudentsByMyDepartment(int page, int size) {
 
         DepartmentType userDept = securityContext.getCurrentUser().getDepartment();
         return userRepository.findAllByDepartmentAndActiveTrue(pageable, userDept)
+                .map(UserResponseDTO::fromEntity);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<UserResponseDTO> findAllInactive(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+
+        if (securityContext.hasRole("ADMIN_IT")) {
+            return userRepository.findAllByActiveFalse(pageable).map(UserResponseDTO::fromEntity);
+        }
+
+        DepartmentType userDept = securityContext.getCurrentUser().getDepartment();
+        return userRepository.findAllByDepartmentAndActiveFalse(pageable, userDept)
                 .map(UserResponseDTO::fromEntity);
     }
 
@@ -147,5 +178,31 @@ public Page<UserResponseDTO> getStudentsByMyDepartment(int page, int size) {
     @Transactional(readOnly = true)
     public boolean existsByEmail(String email) {
         return userRepository.existsByEmail(email);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Resource loadProfilePhoto(Long userId) {
+        Utilisateur user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur", userId));
+
+        if (user.getProfilePhoto() == null || user.getProfilePhoto().isBlank()) {
+            throw new ResourceNotFoundException("Photo de profil", userId);
+        }
+
+        return fileStorageService.load(user.getProfilePhoto());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public String getProfilePhotoContentType(Long userId) {
+        Utilisateur user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur", userId));
+
+        if (user.getProfilePhotoContentType() == null || user.getProfilePhotoContentType().isBlank()) {
+            return "image/jpeg";
+        }
+
+        return user.getProfilePhotoContentType();
     }
 }

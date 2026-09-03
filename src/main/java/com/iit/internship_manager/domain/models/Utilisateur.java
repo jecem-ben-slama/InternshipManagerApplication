@@ -32,6 +32,12 @@ public abstract class Utilisateur {
     private String nom;
     private String prenom;
 
+    @Column(name = "profile_photo")
+    private String profilePhoto;
+
+    @Column(name = "profile_photo_content_type")
+    private String profilePhotoContentType;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "department", nullable = false)
     private DepartmentType department; // Centralized field for all user types
