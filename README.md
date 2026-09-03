@@ -1,5 +1,7 @@
 ﻿# Internship Manager
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
 Internship Manager is a secure, production-oriented backend platform for managing internship workflows across an academic environment. It supports the complete internship lifecycle, from user onboarding and subject discovery to candidacy submission, mentor assignment, meetings, task tracking, document exchange, and communication workflows.
 
 Built with Java 17 and Spring Boot 3, the application exposes a REST API for students, teachers, and administrative staff while enforcing role-based authorization and stateless JWT authentication.
@@ -237,7 +239,7 @@ Before deploying to production, review these operational areas:
 
 ## License
 
-This project does not currently document a custom license in the repository root. Review the repository contents for the applicable license before production deployment or external reuse.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for the full terms and conditions.
 
 ## Contact and Ownership
 
