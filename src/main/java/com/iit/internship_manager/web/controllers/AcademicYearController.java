@@ -15,7 +15,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/academic-years")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ADMIN_IT')")
+@PreAuthorize("hasAnyRole('ADMIN_IT','ENSEIGNANT')")
 public class AcademicYearController {
 
     private final AcademicYearService academicYearService;

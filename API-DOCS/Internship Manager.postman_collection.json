@@ -1,0 +1,3306 @@
+{
+  "info": {
+    "_postman_id": "4bbf6802-ff4a-4bde-941a-f9ef0f89d2c7",
+    "name": "Internship Manager",
+    "description": "# Internship Manager API\n\nA comprehensive REST API for managing the full lifecycle of student internships — from subject proposals and candidatures through to formal affectations and completion.\n\n## Overview\n\nThe Internship Manager API supports three types of users:\n\n- **Students** — Browse internship subjects, submit candidatures, propose their own subjects, communicate with teachers, and track their affectation.\n    \n- **Teachers** — Propose and manage internship subjects, review and act on student candidatures, communicate with students, and monitor their supervision workload.\n    \n- **Administrators** — Manage user accounts, oversee all subjects and candidatures, process affectations, and access system-wide statistics.\n    \n\n## Authentication\n\nAll protected endpoints require a JWT Bearer token. Obtain a token by calling the **login** endpoint under the `Auth` folder. Include it in every subsequent request as:\n\n```\nAuthorization: Bearer <your_token>\n\n ```\n\n## Base URL\n\nRequests use the `{{localUrl}}` variable as the base URL. Set this in your active environment (e.g., `http://localhost:8080`). Each folder also uses a path prefix variable (e.g., `{{auth}}`, `{{users}}`, `{{subjects}}`, `{{candidature}}`, `{{message}}`, `{{affectations}}`).\n\n## Folder Structure\n\n| Folder | Description |\n| --- | --- |\n| **Auth** | Login and registration for teachers and students |\n| **User Management** | CRUD operations and account status management |\n| **Subjects** | Internship subject proposals, browsing, and management |\n| **Candidature** | Student applications and teacher review workflow |\n| **Messagerie** | In-platform messaging between students and teachers |\n| **Affectation** | Formal assignment management, workload tracking, and statistics |",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "32377182"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "login",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"email\": \"achref@iit.tn\",\r\n  \"password\": \"Password123\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{localUrl}}{{auth}}/login",
+              "host": [
+                "{{localUrl}}{{auth}}"
+              ],
+              "path": [
+                "login"
+              ]
+            },
+            "description": "Authenticates a user (student, teacher, or admin) and returns a JWT token. Send credentials in the request body (`email` and `password`). The returned token must be included in the `Authorization` header as a Bearer token for all protected endpoints."
+          },
+          "response": [
+            {
+              "name": "login",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n  \"email\": \"student@iit.tn\",\r\n  \"password\": \"Password123\"\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{localUrl}}{{auth}}/login",
+                  "host": [
+                    "{{localUrl}}{{auth}}"
+                  ],
+                  "path": [
+                    "login"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "Vary",
+                  "value": "Origin"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Access-Control-Request-Method"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Access-Control-Request-Headers"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-XSS-Protection",
+                  "value": "0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, no-store, max-age=0, must-revalidate"
+                },
+                {
+                  "key": "Pragma",
+                  "value": "no-cache"
+                },
+                {
+                  "key": "Expires",
+                  "value": "0"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "DENY"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Transfer-Encoding",
+                  "value": "chunked"
+                },
+                {
+                  "key": "Date",
+                  "value": "Wed, 29 Apr 2026 00:41:05 GMT"
+                },
+                {
+                  "key": "Keep-Alive",
+                  "value": "timeout=60"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"success\": true,\n    \"message\": \"Bienvenue, STUDENT\",\n    \"data\": {\n        \"token\": \"eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoiRVRVRElBTlQiLCJpZCI6Mywic3ViIjoic3R1ZGVudEBpaXQudG4iLCJpYXQiOjE3Nzc0MjMyNjUsImV4cCI6MTc4Nzc5MTI2NX0.LkI67y4hN3h-EqBwNosnSYMWD9rf_dcdXf6fikKvnDA\",\n        \"user\": {\n            \"id\": 3,\n            \"email\": \"student@iit.tn\",\n            \"nom\": \"Test\",\n            \"prenom\": \"STUDENT\",\n            \"role\": \"ETUDIANT\",\n            \"active\": true,\n            \"userType\": \"STUDENT\",\n            \"department\": \"INFORMATIQUE\",\n            \"matricule\": \"2026-IIT-001\",\n            \"filiere\": \"GENIE_LOGICIEL\",\n            \"anneeEtude\": \"ING2\",\n            \"specialites\": null,\n            \"responsablePFE\": false\n        }\n    },\n    \"errorCode\": null\n}"
+            }
+          ]
+        },
+        {
+          "name": "Register Teacher",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"userType\": \"TEACHER\",\r\n  \"email\": \"achref@iit.tn\",\r\n  \"password\": \"Password123\",\r\n  \"nom\": \"achref\",\r\n  \"prenom\": \"dra chnowa\",\r\n  \"department\": \"INFORMATIQUE\",\r\n  \"quotaAnnuel\": 8,\r\n  \"responsablePFE\": false,\r\n  \"specialites\": [\"CYBERSECURITY\", \"DEVOPS\"]\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{localUrl}}{{auth}}/register",
+              "host": [
+                "{{localUrl}}{{auth}}"
+              ],
+              "path": [
+                "register"
+              ]
+            },
+            "description": "Registers a new teacher account in the system. Used by administrators to onboard teaching staff. The request body should include teacher-specific fields such as name, email, password, and role. Returns the created user object upon success."
+          },
+          "response": [
+            {
+              "name": "Register Teacher",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n  \"userType\": \"TEACHER\",\r\n  \"email\": \"prof1@iit.tn\",\r\n  \"password\": \"Password123\",\r\n  \"nom\": \"taher\",\r\n  \"prenom\": \"ghrab\",\r\n  \"department\": \"INFORMATIQUE\",\r\n  \"quotaAnnuel\": 8,\r\n  \"responsablePFE\": false,\r\n  \"specialites\": [\"DOT_NET\", \"JAVA_SPRING\"]\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{localUrl}}{{auth}}/register",
+                  "host": [
+                    "{{localUrl}}{{auth}}"
+                  ],
+                  "path": [
+                    "register"
+                  ]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "Vary",
+                  "value": "Origin"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Access-Control-Request-Method"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Access-Control-Request-Headers"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-XSS-Protection",
+                  "value": "0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, no-store, max-age=0, must-revalidate"
+                },
+                {
+                  "key": "Pragma",
+                  "value": "no-cache"
+                },
+                {
+                  "key": "Expires",
+                  "value": "0"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "DENY"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Transfer-Encoding",
+                  "value": "chunked"
+                },
+                {
+                  "key": "Date",
+                  "value": "Wed, 29 Apr 2026 00:41:25 GMT"
+                },
+                {
+                  "key": "Keep-Alive",
+                  "value": "timeout=60"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"success\": true,\n    \"message\": \"Utilisateur créé avec succès\",\n    \"data\": {\n        \"id\": 7,\n        \"email\": \"prof1@iit.tn\",\n        \"nom\": \"taher\",\n        \"prenom\": \"ghrab\",\n        \"role\": \"ENSEIGNANT\",\n        \"active\": true,\n        \"userType\": \"TEACHER\",\n        \"department\": \"INFORMATIQUE\",\n        \"matricule\": null,\n        \"filiere\": null,\n        \"anneeEtude\": null,\n        \"specialites\": [\n            \"DOT_NET\",\n            \"JAVA_SPRING\"\n        ],\n        \"responsablePFE\": false\n    },\n    \"errorCode\": null\n}"
+            }
+          ]
+        },
+        {
+          "name": "Register Student",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"userType\": \"STUDENT\",\r\n  \"email\": \"medmou02@gmail.com\",\r\n  \"password\": \"Password123\",\r\n  \"nom\": \"mohamed mourad\",\r\n  \"prenom\": \"soussi\",\r\n  \"department\": \"INFORMATIQUE\",\r\n  \"matricule\": \"2026-IIT-005\",\r\n  \"filiere\": \"GENIE_LOGICIEL\",\r\n  \"anneeEtude\": \"ING2\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{localUrl}}{{auth}}/register",
+              "host": [
+                "{{localUrl}}{{auth}}"
+              ],
+              "path": [
+                "register"
+              ]
+            },
+            "description": "Registers a new student account in the system. Used by administrators or during onboarding to create student profiles. The request body should include student-specific fields such as name, email, password, and role. Returns the created user object upon success."
+          },
+          "response": [
+            {
+              "name": "Register Student",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n  \"userType\": \"STUDENT\",\r\n  \"email\": \"hamdi@iit.tn\",\r\n  \"password\": \"Password123\",\r\n  \"nom\": \"zaydi\",\r\n  \"prenom\": \"dali\",\r\n  \"department\": \"INFORMATIQUE\",\r\n  \"matricule\": \"2026-IIT-004\",\r\n  \"filiere\": \"GENIE_LOGICIEL\",\r\n  \"anneeEtude\": \"ING2\"\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{localUrl}}{{auth}}/register",
+                  "host": [
+                    "{{localUrl}}{{auth}}"
+                  ],
+                  "path": [
+                    "register"
+                  ]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "Vary",
+                  "value": "Origin"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Access-Control-Request-Method"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Access-Control-Request-Headers"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-XSS-Protection",
+                  "value": "0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, no-store, max-age=0, must-revalidate"
+                },
+                {
+                  "key": "Pragma",
+                  "value": "no-cache"
+                },
+                {
+                  "key": "Expires",
+                  "value": "0"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "DENY"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Transfer-Encoding",
+                  "value": "chunked"
+                },
+                {
+                  "key": "Date",
+                  "value": "Wed, 29 Apr 2026 00:42:17 GMT"
+                },
+                {
+                  "key": "Keep-Alive",
+                  "value": "timeout=60"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"success\": true,\n    \"message\": \"Utilisateur créé avec succès\",\n    \"data\": {\n        \"id\": 8,\n        \"email\": \"hamdi@iit.tn\",\n        \"nom\": \"zaydi\",\n        \"prenom\": \"dali\",\n        \"role\": \"ETUDIANT\",\n        \"active\": true,\n        \"userType\": \"STUDENT\",\n        \"department\": \"INFORMATIQUE\",\n        \"matricule\": \"2026-IIT-004\",\n        \"filiere\": \"GENIE_LOGICIEL\",\n        \"anneeEtude\": \"ING2\",\n        \"specialites\": null,\n        \"responsablePFE\": false\n    },\n    \"errorCode\": null\n}"
+            }
+          ]
+        }
+      ],
+      "description": "Contains all authentication-related endpoints for the Internship Manager API. Handles user login and registration for both teachers and students. All endpoints in this folder return a JWT token upon success, which must be used as a Bearer token in the `Authorization` header for all protected routes throughout the API."
+    },
+    {
+      "name": "User Management",
+      "item": [
+        {
+          "name": "getAll",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\": \"resp@iit.tn\",\r\n  \"password\": \"pass1234\"}"
+            },
+            "url": {
+              "raw": "{{localUrl}}{{users}}/active",
+              "host": [
+                "{{localUrl}}{{users}}"
+              ],
+              "path": [
+                "active"
+              ]
+            },
+            "description": "Retrieves a list of all currently active users in the system. Used by administrators to view and manage active accounts. Only users with an active status are returned. Requires a valid Bearer token with admin privileges."
+          },
+          "response": [
+            {
+              "name": "getAll",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"email\": \"resp@iit.tn\",\r\n  \"password\": \"pass1234\"}"
+                },
+                "url": {
+                  "raw": "{{localUrl}}{{users}}/active",
+                  "host": [
+                    "{{localUrl}}{{users}}"
+                  ],
+                  "path": [
+                    "active"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "Vary",
+                  "value": "Origin"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Access-Control-Request-Method"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Access-Control-Request-Headers"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-XSS-Protection",
+                  "value": "0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, no-store, max-age=0, must-revalidate"
+                },
+                {
+                  "key": "Pragma",
+                  "value": "no-cache"
+                },
+                {
+                  "key": "Expires",
+                  "value": "0"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "DENY"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Transfer-Encoding",
+                  "value": "chunked"
+                },
+                {
+                  "key": "Date",
+                  "value": "Wed, 29 Apr 2026 00:42:33 GMT"
+                },
+                {
+                  "key": "Keep-Alive",
+                  "value": "timeout=60"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"success\": true,\n    \"message\": \"Liste des utilisateurs actifs récupérée\",\n    \"data\": {\n        \"content\": [\n            {\n                \"id\": 1,\n                \"email\": \"admin@iit.tn\",\n                \"nom\": \"Test\",\n                \"prenom\": \"ADMIN_IT\",\n                \"role\": \"ADMIN_IT\",\n                \"active\": true,\n                \"userType\": \"ADMIN\",\n                \"department\": \"INFORMATIQUE\",\n                \"matricule\": null,\n                \"filiere\": null,\n                \"anneeEtude\": null,\n                \"specialites\": null,\n                \"responsablePFE\": false\n            },\n            {\n                \"id\": 2,\n                \"email\": \"teacher@iit.tn\",\n                \"nom\": \"Test\",\n                \"prenom\": \"TEACHER\",\n                \"role\": \"ENSEIGNANT\",\n                \"active\": true,\n                \"userType\": \"TEACHER\",\n                \"department\": \"INFORMATIQUE\",\n                \"matricule\": null,\n                \"filiere\": null,\n                \"anneeEtude\": null,\n                \"specialites\": [\n                    \"DOT_NET\"\n                ],\n                \"responsablePFE\": true\n            },\n            {\n                \"id\": 3,\n                \"email\": \"student@iit.tn\",\n                \"nom\": \"Test\",\n                \"prenom\": \"STUDENT\",\n                \"role\": \"ETUDIANT\",\n                \"active\": true,\n                \"userType\": \"STUDENT\",\n                \"department\": \"INFORMATIQUE\",\n                \"matricule\": \"2026-IIT-001\",\n                \"filiere\": \"GENIE_LOGICIEL\",\n                \"anneeEtude\": \"ING2\",\n                \"specialites\": null,\n                \"responsablePFE\": false\n            },\n            {\n                \"id\": 4,\n                \"email\": \"prof@iit.tn\",\n                \"nom\": \"taher\",\n                \"prenom\": \"ghrab\",\n                \"role\": \"ENSEIGNANT\",\n                \"active\": true,\n                \"userType\": \"TEACHER\",\n                \"department\": \"INFORMATIQUE\",\n                \"matricule\": null,\n                \"filiere\": null,\n                \"anneeEtude\": null,\n                \"specialites\": [\n                    \"DOT_NET\",\n                    \"JAVA_SPRING\"\n                ],\n                \"responsablePFE\": false\n            },\n            {\n                \"id\": 5,\n                \"email\": \"jecem@iit.tn\",\n                \"nom\": \"jecem\",\n                \"prenom\": \"devvvv\",\n                \"role\": \"ETUDIANT\",\n                \"active\": true,\n                \"userType\": \"STUDENT\",\n                \"department\": \"INFORMATIQUE\",\n                \"matricule\": \"2026-IIT-002\",\n                \"filiere\": \"GENIE_LOGICIEL\",\n                \"anneeEtude\": \"ING2\",\n                \"specialites\": null,\n                \"responsablePFE\": false\n            },\n            {\n                \"id\": 6,\n                \"email\": \"dali@iit.tn\",\n                \"nom\": \"zaydi\",\n                \"prenom\": \"dali\",\n                \"role\": \"ETUDIANT\",\n                \"active\": true,\n                \"userType\": \"STUDENT\",\n                \"department\": \"INFORMATIQUE\",\n                \"matricule\": \"2026-IIT-003\",\n                \"filiere\": \"GENIE_LOGICIEL\",\n                \"anneeEtude\": \"ING2\",\n                \"specialites\": null,\n                \"responsablePFE\": false\n            },\n            {\n                \"id\": 7,\n                \"email\": \"prof1@iit.tn\",\n                \"nom\": \"taher\",\n                \"prenom\": \"ghrab\",\n                \"role\": \"ENSEIGNANT\",\n                \"active\": true,\n                \"userType\": \"TEACHER\",\n                \"department\": \"INFORMATIQUE\",\n                \"matricule\": null,\n                \"filiere\": null,\n                \"anneeEtude\": null,\n                \"specialites\": [\n                    \"DOT_NET\",\n                    \"JAVA_SPRING\"\n                ],\n                \"responsablePFE\": false\n            },\n            {\n                \"id\": 8,\n                \"email\": \"hamdi@iit.tn\",\n                \"nom\": \"zaydi\",\n                \"prenom\": \"dali\",\n                \"role\": \"ETUDIANT\",\n                \"active\": true,\n                \"userType\": \"STUDENT\",\n                \"department\": \"INFORMATIQUE\",\n                \"matricule\": \"2026-IIT-004\",\n                \"filiere\": \"GENIE_LOGICIEL\",\n                \"anneeEtude\": \"ING2\",\n                \"specialites\": null,\n                \"responsablePFE\": false\n            }\n        ],\n        \"pageable\": {\n            \"pageNumber\": 0,\n            \"pageSize\": 10,\n            \"sort\": {\n                \"empty\": true,\n                \"sorted\": false,\n                \"unsorted\": true\n            },\n            \"offset\": 0,\n            \"paged\": true,\n            \"unpaged\": false\n        },\n        \"totalPages\": 1,\n        \"totalElements\": 8,\n        \"last\": true,\n        \"size\": 10,\n        \"number\": 0,\n        \"sort\": {\n            \"empty\": true,\n            \"sorted\": false,\n            \"unsorted\": true\n        },\n        \"numberOfElements\": 8,\n        \"first\": true,\n        \"empty\": false\n    },\n    \"errorCode\": null\n}"
+            }
+          ]
+        },
+        {
+          "name": "getById",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{localUrl}}{{users}}/4",
+              "host": [
+                "{{localUrl}}{{users}}"
+              ],
+              "path": [
+                "4"
+              ]
+            },
+            "description": "Retrieves the details of a specific user by their unique ID. The user ID is embedded in the URL path (e.g., `/users/5`). Used by administrators to inspect individual user profiles. Returns full user details including role, status, and contact information."
+          },
+          "response": [
+            {
+              "name": "getById",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localUrl}}{{users}}/5",
+                  "host": [
+                    "{{localUrl}}{{users}}"
+                  ],
+                  "path": [
+                    "5"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "Vary",
+                  "value": "Origin"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Access-Control-Request-Method"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Access-Control-Request-Headers"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-XSS-Protection",
+                  "value": "0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, no-store, max-age=0, must-revalidate"
+                },
+                {
+                  "key": "Pragma",
+                  "value": "no-cache"
+                },
+                {
+                  "key": "Expires",
+                  "value": "0"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "DENY"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Transfer-Encoding",
+                  "value": "chunked"
+                },
+                {
+                  "key": "Date",
+                  "value": "Wed, 29 Apr 2026 00:42:40 GMT"
+                },
+                {
+                  "key": "Keep-Alive",
+                  "value": "timeout=60"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"success\": true,\n    \"message\": \"Utilisateur récupéré\",\n    \"data\": {\n        \"id\": 5,\n        \"email\": \"jecem@iit.tn\",\n        \"nom\": \"jecem\",\n        \"prenom\": \"devvvv\",\n        \"role\": \"ETUDIANT\",\n        \"active\": true,\n        \"userType\": \"STUDENT\",\n        \"department\": \"INFORMATIQUE\",\n        \"matricule\": \"2026-IIT-002\",\n        \"filiere\": \"GENIE_LOGICIEL\",\n        \"anneeEtude\": \"ING2\",\n        \"specialites\": null,\n        \"responsablePFE\": false\n    },\n    \"errorCode\": null\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update user",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"id\": 5,\r\n    \"email\": \"jecem@iit.tn\",\r\n    \"password\": \"Password123\",\r\n    \"nom\": \"jecem\",\r\n    \"prenom\": \"devvvv\",\r\n    \"userType\": \"STUDENT\",\r\n    \"matricule\": \"2026-IIT-002\",\r\n    \"department\": \"INFORMATIQUE\",\r\n    \"filiere\": \"GENIE_LOGICIEL\",\r\n    \"role\": \"ETUDIANT\",\r\n    \"anneeEtude\": \"ING2\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{localUrl}}{{users}}/5",
+              "host": [
+                "{{localUrl}}{{users}}"
+              ],
+              "path": [
+                "5"
+              ]
+            },
+            "description": "Updates the profile information of a specific user identified by their ID in the URL path (e.g., `/users/5`). Used by administrators or the user themselves to modify fields such as name, email, or other profile attributes. Send only the fields to be updated in the request body."
+          },
+          "response": [
+            {
+              "name": "Update user",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n    \"id\": 5,\r\n    \"email\": \"jecem@iit.tn\",\r\n    \"password\": \"Password123\",\r\n    \"nom\": \"jecem\",\r\n    \"prenom\": \"devvvv\",\r\n    \"userType\": \"STUDENT\",\r\n    \"matricule\": \"2026-IIT-002\",\r\n    \"department\": \"INFORMATIQUE\",\r\n    \"filiere\": \"GENIE_LOGICIEL\",\r\n    \"role\": \"ETUDIANT\",\r\n    \"anneeEtude\": \"ING2\"\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{localUrl}}{{users}}/5",
+                  "host": [
+                    "{{localUrl}}{{users}}"
+                  ],
+                  "path": [
+                    "5"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "Vary",
+                  "value": "Origin"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Access-Control-Request-Method"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Access-Control-Request-Headers"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-XSS-Protection",
+                  "value": "0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, no-store, max-age=0, must-revalidate"
+                },
+                {
+                  "key": "Pragma",
+                  "value": "no-cache"
+                },
+                {
+                  "key": "Expires",
+                  "value": "0"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "DENY"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Transfer-Encoding",
+                  "value": "chunked"
+                },
+                {
+                  "key": "Date",
+                  "value": "Wed, 29 Apr 2026 00:42:46 GMT"
+                },
+                {
+                  "key": "Keep-Alive",
+                  "value": "timeout=60"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"success\": true,\n    \"message\": \"Utilisateur mis à jour avec succès\",\n    \"data\": {\n        \"id\": 5,\n        \"email\": \"jecem@iit.tn\",\n        \"nom\": \"jecem\",\n        \"prenom\": \"devvvv\",\n        \"role\": \"ETUDIANT\",\n        \"active\": true,\n        \"userType\": \"STUDENT\",\n        \"department\": \"INFORMATIQUE\",\n        \"matricule\": \"2026-IIT-002\",\n        \"filiere\": \"GENIE_LOGICIEL\",\n        \"anneeEtude\": \"ING2\",\n        \"specialites\": null,\n        \"responsablePFE\": false\n    },\n    \"errorCode\": null\n}"
+            }
+          ]
+        },
+        {
+          "name": "Deactivate",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{localUrl}}{{users}}/4",
+              "host": [
+                "{{localUrl}}{{users}}"
+              ],
+              "path": [
+                "4"
+              ]
+            },
+            "description": "Soft-deletes (deactivates) a user account identified by their ID in the URL path (e.g., `/users/4`). The user is not permanently removed but marked as inactive. Used by administrators to revoke access without losing user data. The user can be reactivated later."
+          },
+          "response": [
+            {
+              "name": "Deactivate",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{localUrl}}{{users}}/4",
+                  "host": [
+                    "{{localUrl}}{{users}}"
+                  ],
+                  "path": [
+                    "4"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "Vary",
+                  "value": "Origin"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Access-Control-Request-Method"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Access-Control-Request-Headers"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-XSS-Protection",
+                  "value": "0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, no-store, max-age=0, must-revalidate"
+                },
+                {
+                  "key": "Pragma",
+                  "value": "no-cache"
+                },
+                {
+                  "key": "Expires",
+                  "value": "0"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "DENY"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Transfer-Encoding",
+                  "value": "chunked"
+                },
+                {
+                  "key": "Date",
+                  "value": "Wed, 29 Apr 2026 00:42:53 GMT"
+                },
+                {
+                  "key": "Keep-Alive",
+                  "value": "timeout=60"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"success\": true,\n    \"message\": \"Utilisateur désactivé avec succès\",\n    \"data\": null,\n    \"errorCode\": null\n}"
+            }
+          ]
+        },
+        {
+          "name": "Reactivate",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{localUrl}}{{users}}/4/reactivate",
+              "host": [
+                "{{localUrl}}{{users}}"
+              ],
+              "path": [
+                "4",
+                "reactivate"
+              ]
+            },
+            "description": "Reactivates a previously deactivated user account identified by their ID in the URL path (e.g., `/users/4/reactivate`). Used by administrators to restore access for a user who was soft-deleted. Returns the updated user object with an active status."
+          },
+          "response": [
+            {
+              "name": "Reactivate",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{localUrl}}{{users}}/4/reactivate",
+                  "host": [
+                    "{{localUrl}}{{users}}"
+                  ],
+                  "path": [
+                    "4",
+                    "reactivate"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "Vary",
+                  "value": "Origin"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Access-Control-Request-Method"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Access-Control-Request-Headers"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-XSS-Protection",
+                  "value": "0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, no-store, max-age=0, must-revalidate"
+                },
+                {
+                  "key": "Pragma",
+                  "value": "no-cache"
+                },
+                {
+                  "key": "Expires",
+                  "value": "0"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "DENY"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Transfer-Encoding",
+                  "value": "chunked"
+                },
+                {
+                  "key": "Date",
+                  "value": "Wed, 29 Apr 2026 00:42:59 GMT"
+                },
+                {
+                  "key": "Keep-Alive",
+                  "value": "timeout=60"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"success\": true,\n    \"message\": \"Utilisateur réactivé avec succès\",\n    \"data\": null,\n    \"errorCode\": null\n}"
+            }
+          ]
+        }
+      ],
+      "description": "Contains endpoints for managing user accounts within the system. Administrators can retrieve all active users, look up individual users by ID, update user profiles, and control account status through deactivation and reactivation. All endpoints require a valid Bearer token with appropriate admin privileges."
+    },
+    {
+      "name": "Subjects",
+      "item": [
+        {
+          "name": "Create",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{achref}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"titre\": \" Simulation de voiture\",\r\n    \"description\": \"réalisation solution logiciel de simulation electronique \",\r\n    \"type\":\"PFA\",\r\n    \"technologies\": [\r\n        \"UNITY\",\r\n        \"Solid Works\"\r\n    ]\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{localUrl}}{{subjects}}/teacher-proposal",
+              "host": [
+                "{{localUrl}}{{subjects}}"
+              ],
+              "path": [
+                "teacher-proposal"
+              ]
+            },
+            "description": "Allows a teacher to propose a new internship subject. The subject details (title, description, requirements, etc.) are sent in the request body. The created subject is associated with the authenticated teacher and becomes available for students to apply to."
+          },
+          "response": [
+            {
+              "name": "Create",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n    \"titre\": \" test after a lot of refactoring\",\r\n    \"description\": \"réalisation app mobile\",\r\n    \"type\":\"PFA\",\r\n    \"technologies\": [\r\n        \"Flutter\",\r\n        \"Firebase\"\r\n    ]\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{localUrl}}{{subjects}}/teacher-proposal",
+                  "host": [
+                    "{{localUrl}}{{subjects}}"
+                  ],
+                  "path": [
+                    "teacher-proposal"
+                  ]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "Vary",
+                  "value": "Origin"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Access-Control-Request-Method"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Access-Control-Request-Headers"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-XSS-Protection",
+                  "value": "0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, no-store, max-age=0, must-revalidate"
+                },
+                {
+                  "key": "Pragma",
+                  "value": "no-cache"
+                },
+                {
+                  "key": "Expires",
+                  "value": "0"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "DENY"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Transfer-Encoding",
+                  "value": "chunked"
+                },
+                {
+                  "key": "Date",
+                  "value": "Wed, 29 Apr 2026 14:36:47 GMT"
+                },
+                {
+                  "key": "Keep-Alive",
+                  "value": "timeout=60"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"success\": true,\n    \"message\": \"Sujet créé pour l'année en cours\",\n    \"data\": {\n        \"id\": 1,\n        \"type\": \"PFA\",\n        \"titre\": \" test after a lot of refactoring\",\n        \"description\": \"réalisation app mobile\",\n        \"statut\": \"AVAILABLE\",\n        \"technologies\": [\n            \"Flutter\",\n            \"Firebase\"\n        ],\n        \"anneeId\": \"2025-2026\",\n        \"proposant\": {\n            \"id\": 2,\n            \"email\": \"teacher@iit.tn\",\n            \"nom\": \"Test\",\n            \"prenom\": \"TEACHER\",\n            \"role\": \"ENSEIGNANT\",\n            \"active\": true,\n            \"userType\": \"TEACHER\",\n            \"department\": \"INFORMATIQUE\",\n            \"matricule\": null,\n            \"filiere\": null,\n            \"anneeEtude\": null,\n            \"specialites\": [\n                \"DOT_NET\"\n            ],\n            \"responsablePFE\": true\n        }\n    },\n    \"errorCode\": null\n}"
+            }
+          ]
+        },
+        {
+          "name": "getByTeacherId",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{ahmed}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{localUrl}}{{subjects}}/my-subjects",
+              "host": [
+                "{{localUrl}}{{subjects}}"
+              ],
+              "path": [
+                "my-subjects"
+              ]
+            },
+            "description": "Retrieves all internship subjects proposed by the currently authenticated teacher. Used by teachers to view and manage their own subject listings. Returns a list of subjects associated with the teacher's account based on the JWT token."
+          },
+          "response": [
+            {
+              "name": "getByTeacherId",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localUrl}}{{subjects}}/my-subjects",
+                  "host": [
+                    "{{localUrl}}{{subjects}}"
+                  ],
+                  "path": [
+                    "my-subjects"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "Vary",
+                  "value": "Origin"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Access-Control-Request-Method"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Access-Control-Request-Headers"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-XSS-Protection",
+                  "value": "0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, no-store, max-age=0, must-revalidate"
+                },
+                {
+                  "key": "Pragma",
+                  "value": "no-cache"
+                },
+                {
+                  "key": "Expires",
+                  "value": "0"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "DENY"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Transfer-Encoding",
+                  "value": "chunked"
+                },
+                {
+                  "key": "Date",
+                  "value": "Wed, 29 Apr 2026 14:37:36 GMT"
+                },
+                {
+                  "key": "Keep-Alive",
+                  "value": "timeout=60"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"success\": true,\n    \"message\": \"Vos sujets de l'année en cours récupérés\",\n    \"data\": {\n        \"content\": [\n            {\n                \"id\": 1,\n                \"type\": \"PFA\",\n                \"titre\": \" test after a lot of refactoring\",\n                \"description\": \"réalisation app mobile\",\n                \"statut\": \"AVAILABLE\",\n                \"technologies\": [\n                    \"Flutter\",\n                    \"Firebase\"\n                ],\n                \"anneeId\": \"2025-2026\",\n                \"proposant\": {\n                    \"id\": 2,\n                    \"email\": \"teacher@iit.tn\",\n                    \"nom\": \"Test\",\n                    \"prenom\": \"TEACHER\",\n                    \"role\": \"ENSEIGNANT\",\n                    \"active\": true,\n                    \"userType\": \"TEACHER\",\n                    \"department\": \"INFORMATIQUE\",\n                    \"matricule\": null,\n                    \"filiere\": null,\n                    \"anneeEtude\": null,\n                    \"specialites\": [\n                        \"DOT_NET\"\n                    ],\n                    \"responsablePFE\": true\n                }\n            }\n        ],\n        \"pageable\": {\n            \"pageNumber\": 0,\n            \"pageSize\": 10,\n            \"sort\": {\n                \"empty\": true,\n                \"unsorted\": true,\n                \"sorted\": false\n            },\n            \"offset\": 0,\n            \"unpaged\": false,\n            \"paged\": true\n        },\n        \"totalPages\": 1,\n        \"totalElements\": 1,\n        \"last\": true,\n        \"size\": 10,\n        \"number\": 0,\n        \"sort\": {\n            \"empty\": true,\n            \"unsorted\": true,\n            \"sorted\": false\n        },\n        \"numberOfElements\": 1,\n        \"first\": true,\n        \"empty\": false\n    },\n    \"errorCode\": null\n}"
+            }
+          ]
+        },
+        {
+          "name": "getById",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{teacherToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{localUrl}}{{subjects}}/1",
+              "host": [
+                "{{localUrl}}{{subjects}}"
+              ],
+              "path": [
+                "1"
+              ]
+            },
+            "description": "Retrieves the full details of a specific internship subject by its unique ID in the URL path (e.g., `/subjects/1`). Used by students, teachers, and administrators to view subject information including title, description, and associated teacher."
+          },
+          "response": [
+            {
+              "name": "getById",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localUrl}}{{subjects}}/1",
+                  "host": [
+                    "{{localUrl}}{{subjects}}"
+                  ],
+                  "path": [
+                    "1"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "Vary",
+                  "value": "Origin"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Access-Control-Request-Method"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Access-Control-Request-Headers"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-XSS-Protection",
+                  "value": "0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, no-store, max-age=0, must-revalidate"
+                },
+                {
+                  "key": "Pragma",
+                  "value": "no-cache"
+                },
+                {
+                  "key": "Expires",
+                  "value": "0"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "DENY"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Transfer-Encoding",
+                  "value": "chunked"
+                },
+                {
+                  "key": "Date",
+                  "value": "Wed, 29 Apr 2026 14:40:05 GMT"
+                },
+                {
+                  "key": "Keep-Alive",
+                  "value": "timeout=60"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"success\": true,\n    \"message\": \"Détails du sujet récupérés\",\n    \"data\": {\n        \"id\": 1,\n        \"type\": \"PFA\",\n        \"titre\": \" test after a lot of refactoring\",\n        \"description\": \"réalisation app mobile\",\n        \"statut\": \"AVAILABLE\",\n        \"technologies\": [\n            \"Flutter\",\n            \"Firebase\"\n        ],\n        \"anneeId\": \"2025-2026\",\n        \"proposant\": {\n            \"id\": 2,\n            \"email\": \"teacher@iit.tn\",\n            \"nom\": \"Test\",\n            \"prenom\": \"TEACHER\",\n            \"role\": \"ENSEIGNANT\",\n            \"active\": true,\n            \"userType\": \"TEACHER\",\n            \"department\": \"INFORMATIQUE\",\n            \"matricule\": null,\n            \"filiere\": null,\n            \"anneeEtude\": null,\n            \"specialites\": [\n                \"DOT_NET\"\n            ],\n            \"responsablePFE\": true\n        }\n    },\n    \"errorCode\": null\n}"
+            }
+          ]
+        },
+        {
+          "name": "getAll",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{hamdi}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{localUrl}}{{subjects}}?page=0",
+              "host": [
+                "{{localUrl}}{{subjects}}"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "status",
+                  "value": "AVAILABLE",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Retrieves a paginated list of all available internship subjects. Use the `page` query parameter to navigate through pages (e.g., `?page=0` for the first page). Used by students to browse available subjects and by administrators for oversight."
+          },
+          "response": [
+            {
+              "name": "getAll",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localUrl}}{{subjects}}?page=0",
+                  "host": [
+                    "{{localUrl}}{{subjects}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "0"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "Vary",
+                  "value": "Origin"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Access-Control-Request-Method"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Access-Control-Request-Headers"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-XSS-Protection",
+                  "value": "0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, no-store, max-age=0, must-revalidate"
+                },
+                {
+                  "key": "Pragma",
+                  "value": "no-cache"
+                },
+                {
+                  "key": "Expires",
+                  "value": "0"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "DENY"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Transfer-Encoding",
+                  "value": "chunked"
+                },
+                {
+                  "key": "Date",
+                  "value": "Wed, 29 Apr 2026 14:40:29 GMT"
+                },
+                {
+                  "key": "Keep-Alive",
+                  "value": "timeout=60"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"success\": true,\n    \"message\": \"Sujets de l'année en cours récupérés\",\n    \"data\": {\n        \"content\": [\n            {\n                \"id\": 1,\n                \"type\": \"PFA\",\n                \"titre\": \" test after a lot of refactoring\",\n                \"description\": \"réalisation app mobile\",\n                \"statut\": \"AVAILABLE\",\n                \"technologies\": [\n                    \"Flutter\",\n                    \"Firebase\"\n                ],\n                \"anneeId\": \"2025-2026\",\n                \"proposant\": {\n                    \"id\": 2,\n                    \"email\": \"teacher@iit.tn\",\n                    \"nom\": \"Test\",\n                    \"prenom\": \"TEACHER\",\n                    \"role\": \"ENSEIGNANT\",\n                    \"active\": true,\n                    \"userType\": \"TEACHER\",\n                    \"department\": \"INFORMATIQUE\",\n                    \"matricule\": null,\n                    \"filiere\": null,\n                    \"anneeEtude\": null,\n                    \"specialites\": [\n                        \"DOT_NET\"\n                    ],\n                    \"responsablePFE\": true\n                }\n            },\n            {\n                \"id\": 2,\n                \"type\": \"PFA\",\n                \"titre\": \" test 2\",\n                \"description\": \"réalisation app mobile\",\n                \"statut\": \"AVAILABLE\",\n                \"technologies\": [\n                    \"Flutter\",\n                    \"Firebase\"\n                ],\n                \"anneeId\": \"2025-2026\",\n                \"proposant\": {\n                    \"id\": 2,\n                    \"email\": \"teacher@iit.tn\",\n                    \"nom\": \"Test\",\n                    \"prenom\": \"TEACHER\",\n                    \"role\": \"ENSEIGNANT\",\n                    \"active\": true,\n                    \"userType\": \"TEACHER\",\n                    \"department\": \"INFORMATIQUE\",\n                    \"matricule\": null,\n                    \"filiere\": null,\n                    \"anneeEtude\": null,\n                    \"specialites\": [\n                        \"DOT_NET\"\n                    ],\n                    \"responsablePFE\": true\n                }\n            },\n            {\n                \"id\": 3,\n                \"type\": \"PFA\",\n                \"titre\": \" test 3\",\n                \"description\": \"réalisation app mobile\",\n                \"statut\": \"AVAILABLE\",\n                \"technologies\": [\n                    \"Flutter\",\n                    \"Firebase\"\n                ],\n                \"anneeId\": \"2025-2026\",\n                \"proposant\": {\n                    \"id\": 2,\n                    \"email\": \"teacher@iit.tn\",\n                    \"nom\": \"Test\",\n                    \"prenom\": \"TEACHER\",\n                    \"role\": \"ENSEIGNANT\",\n                    \"active\": true,\n                    \"userType\": \"TEACHER\",\n                    \"department\": \"INFORMATIQUE\",\n                    \"matricule\": null,\n                    \"filiere\": null,\n                    \"anneeEtude\": null,\n                    \"specialites\": [\n                        \"DOT_NET\"\n                    ],\n                    \"responsablePFE\": true\n                }\n            }\n        ],\n        \"pageable\": {\n            \"pageNumber\": 0,\n            \"pageSize\": 10,\n            \"sort\": {\n                \"empty\": true,\n                \"unsorted\": true,\n                \"sorted\": false\n            },\n            \"offset\": 0,\n            \"unpaged\": false,\n            \"paged\": true\n        },\n        \"totalPages\": 1,\n        \"totalElements\": 3,\n        \"last\": true,\n        \"size\": 10,\n        \"number\": 0,\n        \"sort\": {\n            \"empty\": true,\n            \"unsorted\": true,\n            \"sorted\": false\n        },\n        \"numberOfElements\": 3,\n        \"first\": true,\n        \"empty\": false\n    },\n    \"errorCode\": null\n}"
+            }
+          ]
+        },
+        {
+          "name": "Delete",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{teacherToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{localUrl}}{{subjects}}/1",
+              "host": [
+                "{{localUrl}}{{subjects}}"
+              ],
+              "path": [
+                "1"
+              ]
+            },
+            "description": "Permanently deletes an internship subject identified by its ID in the URL path (e.g., `/subjects/5`). Used by teachers (for their own subjects) or administrators. This action is irreversible — ensure no active candidatures are linked to the subject before deleting."
+          },
+          "response": [
+            {
+              "name": "Delete",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{localUrl}}{{subjects}}/3",
+                  "host": [
+                    "{{localUrl}}{{subjects}}"
+                  ],
+                  "path": [
+                    "3"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "Vary",
+                  "value": "Origin"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Access-Control-Request-Method"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Access-Control-Request-Headers"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-XSS-Protection",
+                  "value": "0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, no-store, max-age=0, must-revalidate"
+                },
+                {
+                  "key": "Pragma",
+                  "value": "no-cache"
+                },
+                {
+                  "key": "Expires",
+                  "value": "0"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "DENY"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Transfer-Encoding",
+                  "value": "chunked"
+                },
+                {
+                  "key": "Date",
+                  "value": "Wed, 29 Apr 2026 00:44:18 GMT"
+                },
+                {
+                  "key": "Keep-Alive",
+                  "value": "timeout=60"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"success\": true,\n    \"message\": \"Sujet supprimé\",\n    \"data\": null,\n    \"errorCode\": null\n}"
+            }
+          ]
+        },
+        {
+          "name": "update",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{teacherToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"titre\": \"Nouveau Titre mis à jour\",\r\n    \"description\": \"Nouvelle description tres détaillée\",\r\n    \"type\":\"PFE\",\r\n    \"technologies\": [\"Flutter\", \"Firebase\", \"Node.js\"]\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{localUrl}}{{subjects}}/1",
+              "host": [
+                "{{localUrl}}{{subjects}}"
+              ],
+              "path": [
+                "1"
+              ]
+            },
+            "description": "Updates the details of an existing internship subject identified by its ID in the URL path (e.g., `/subjects/1`). Used by the teacher who owns the subject or an administrator. Send the updated fields in the request body. Returns the modified subject object."
+          },
+          "response": [
+            {
+              "name": "update",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n    \"titre\": \"Nouveau Titre mis à jour\",\r\n    \"description\": \"Nouvelle description tres détaillée\",\r\n    \"type\":\"PFE\",\r\n    \"technologies\": [\"Flutter\", \"Firebase\", \"Node.js\"]\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{localUrl}}{{subjects}}/1",
+                  "host": [
+                    "{{localUrl}}{{subjects}}"
+                  ],
+                  "path": [
+                    "1"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "Vary",
+                  "value": "Origin"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Access-Control-Request-Method"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Access-Control-Request-Headers"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-XSS-Protection",
+                  "value": "0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, no-store, max-age=0, must-revalidate"
+                },
+                {
+                  "key": "Pragma",
+                  "value": "no-cache"
+                },
+                {
+                  "key": "Expires",
+                  "value": "0"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "DENY"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Transfer-Encoding",
+                  "value": "chunked"
+                },
+                {
+                  "key": "Date",
+                  "value": "Wed, 29 Apr 2026 00:44:27 GMT"
+                },
+                {
+                  "key": "Keep-Alive",
+                  "value": "timeout=60"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"success\": true,\n    \"message\": \"Sujet mis à jour avec succès\",\n    \"data\": {\n        \"id\": 1,\n        \"type\": \"PFE\",\n        \"titre\": \"Nouveau Titre mis à jour\",\n        \"description\": \"Nouvelle description tres détaillée\",\n        \"statut\": \"AVAILABLE\",\n        \"technologies\": [\n            \"Flutter\",\n            \"Firebase\",\n            \"Node.js\"\n        ],\n        \"proposant\": {\n            \"id\": 2,\n            \"email\": \"teacher@iit.tn\",\n            \"nom\": \"Test\",\n            \"prenom\": \"TEACHER\",\n            \"role\": \"ENSEIGNANT\",\n            \"active\": true,\n            \"userType\": \"TEACHER\",\n            \"department\": \"INFORMATIQUE\",\n            \"matricule\": null,\n            \"filiere\": null,\n            \"anneeEtude\": null,\n            \"specialites\": [\n                \"DOT_NET\"\n            ],\n            \"responsablePFE\": true\n        }\n    },\n    \"errorCode\": null\n}"
+            }
+          ]
+        },
+        {
+          "name": "propose by student",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jecem}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"titre\": \"proj 6\",\r\n  \"description\": \"Conception et réalisation d'une application mobile.\",\r\n  \"technologies\": [\"Flutter\", \"NodeJS\", \"PostgreSQL\"],\r\n  \"type\": \"PFE\",\r\n  \"partnerIds\": [8]\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{localUrl}}{{subjects}}/student-proposal/2",
+              "host": [
+                "{{localUrl}}{{subjects}}"
+              ],
+              "path": [
+                "student-proposal",
+                "2"
+              ]
+            },
+            "description": "Allows a student to propose their own internship subject to a specific teacher, identified by the teacher's ID in the URL path (e.g., `/subjects/student-proposal/2`). The proposal details are sent in the request body. The teacher can then review and accept or reject the proposal."
+          },
+          "response": [
+            {
+              "name": "propose by student",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n  \"titre\": \"Développement d'une autre application\",\r\n  \"description\": \"Conception et réalisation d'une application mobile.\",\r\n  \"technologies\": [\"Flutter\", \"NodeJS\", \"PostgreSQL\"],\r\n  \"type\": \"PFE\",\r\n  \"partnerIds\": []\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{localUrl}}{{subjects}}/student-proposal/2",
+                  "host": [
+                    "{{localUrl}}{{subjects}}"
+                  ],
+                  "path": [
+                    "student-proposal",
+                    "2"
+                  ]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "Vary",
+                  "value": "Origin"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Access-Control-Request-Method"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Access-Control-Request-Headers"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-XSS-Protection",
+                  "value": "0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, no-store, max-age=0, must-revalidate"
+                },
+                {
+                  "key": "Pragma",
+                  "value": "no-cache"
+                },
+                {
+                  "key": "Expires",
+                  "value": "0"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "DENY"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Transfer-Encoding",
+                  "value": "chunked"
+                },
+                {
+                  "key": "Date",
+                  "value": "Wed, 29 Apr 2026 14:41:00 GMT"
+                },
+                {
+                  "key": "Keep-Alive",
+                  "value": "timeout=60"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"success\": true,\n    \"message\": \"Proposition envoyée pour l'année en cours\",\n    \"data\": {\n        \"id\": 4,\n        \"type\": \"PFE\",\n        \"titre\": \"Développement d'une autre application\",\n        \"description\": \"Conception et réalisation d'une application mobile.\",\n        \"statut\": \"PROPOSED_BY_STUDENT\",\n        \"technologies\": [\n            \"Flutter\",\n            \"NodeJS\",\n            \"PostgreSQL\"\n        ],\n        \"anneeId\": \"2025-2026\",\n        \"proposant\": {\n            \"id\": 2,\n            \"email\": \"teacher@iit.tn\",\n            \"nom\": \"Test\",\n            \"prenom\": \"TEACHER\",\n            \"role\": \"ENSEIGNANT\",\n            \"active\": true,\n            \"userType\": \"TEACHER\",\n            \"department\": \"INFORMATIQUE\",\n            \"matricule\": null,\n            \"filiere\": null,\n            \"anneeEtude\": null,\n            \"specialites\": [\n                \"DOT_NET\"\n            ],\n            \"responsablePFE\": true\n        }\n    },\n    \"errorCode\": null\n}"
+            }
+          ]
+        },
+        {
+          "name": "Subjects Archive",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoiRU5TRUlHTkFOVCIsImlkIjoyLCJzdWIiOiJ0ZWFjaGVyQGlpdC50biIsImlhdCI6MTc3OTA1OTQ2MCwiZXhwIjoxNzg5NDI3NDYwfQ.0Xc-ZF-V1Hx--k-bjb_Qgcb41bNWCtkVBOoUsxigouM",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{localUrl}}{{subjects}}/archive/2024-2025",
+              "host": [
+                "{{localUrl}}{{subjects}}"
+              ],
+              "path": [
+                "archive",
+                "2024-2025"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": "Contains endpoints for managing internship subjects. Teachers can propose new subjects, view their own subjects, and update or delete them. Students can browse all available subjects with pagination, view subject details, and submit their own subject proposals to a specific teacher. Subject IDs are passed as path variables in most endpoints."
+    },
+    {
+      "name": "Candidature",
+      "item": [
+        {
+          "name": "Postuler",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{hamdi}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "[]",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{localUrl}}{{candidature}}/postuler/1",
+              "host": [
+                "{{localUrl}}{{candidature}}"
+              ],
+              "path": [
+                "postuler",
+                "1"
+              ]
+            },
+            "description": "Submits a candidature (application) for a specific internship subject identified by its ID in the URL path (e.g., `/candidature/postuler/1`). Used by students to apply to an available subject. The authenticated student's identity is derived from the JWT token."
+          },
+          "response": [
+            {
+              "name": "Postuler",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "[]",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{localUrl}}{{candidature}}/postuler/1",
+                  "host": [
+                    "{{localUrl}}{{candidature}}"
+                  ],
+                  "path": [
+                    "postuler",
+                    "1"
+                  ]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "Vary",
+                  "value": "Origin"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Access-Control-Request-Method"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Access-Control-Request-Headers"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-XSS-Protection",
+                  "value": "0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, no-store, max-age=0, must-revalidate"
+                },
+                {
+                  "key": "Pragma",
+                  "value": "no-cache"
+                },
+                {
+                  "key": "Expires",
+                  "value": "0"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "DENY"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Transfer-Encoding",
+                  "value": "chunked"
+                },
+                {
+                  "key": "Date",
+                  "value": "Wed, 29 Apr 2026 00:47:20 GMT"
+                },
+                {
+                  "key": "Keep-Alive",
+                  "value": "timeout=60"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"success\": true,\n    \"message\": \"Candidature soumise avec succès\",\n    \"data\": null,\n    \"errorCode\": null\n}"
+            }
+          ]
+        },
+        {
+          "name": "getCandidature",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{hamdi}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{localUrl}}{{candidature}}/me",
+              "host": [
+                "{{localUrl}}{{candidature}}"
+              ],
+              "path": [
+                "me"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "REJECTED_BY_TEACHER",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "0",
+                  "disabled": true
+                },
+                {
+                  "key": "size",
+                  "value": "5",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Retrieves all candidatures submitted by the currently authenticated student. Used by students to track the status of their applications (pending, accepted, refused, etc.). The student's identity is derived from the JWT token — no path variable needed."
+          },
+          "response": [
+            {
+              "name": "getCandidature",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localUrl}}{{candidature}}/me",
+                  "host": [
+                    "{{localUrl}}{{candidature}}"
+                  ],
+                  "path": [
+                    "me"
+                  ],
+                  "query": [
+                    {
+                      "key": "status",
+                      "value": "REJECTED_BY_TEACHER",
+                      "disabled": true
+                    },
+                    {
+                      "key": "page",
+                      "value": "0",
+                      "disabled": true
+                    },
+                    {
+                      "key": "size",
+                      "value": "5",
+                      "disabled": true
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "Vary",
+                  "value": "Origin"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Access-Control-Request-Method"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Access-Control-Request-Headers"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-XSS-Protection",
+                  "value": "0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, no-store, max-age=0, must-revalidate"
+                },
+                {
+                  "key": "Pragma",
+                  "value": "no-cache"
+                },
+                {
+                  "key": "Expires",
+                  "value": "0"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "DENY"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Transfer-Encoding",
+                  "value": "chunked"
+                },
+                {
+                  "key": "Date",
+                  "value": "Wed, 29 Apr 2026 14:41:59 GMT"
+                },
+                {
+                  "key": "Keep-Alive",
+                  "value": "timeout=60"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"success\": true,\n    \"message\": \"Liste des candidatures de l'année en cours récupérée\",\n    \"data\": {\n        \"content\": [\n            {\n                \"id\": 4,\n                \"statut\": \"PENDING\",\n                \"anneeId\": \"2025-2026\",\n                \"sujetId\": 3,\n                \"sujetTitre\": \" test 3\",\n                \"sujetDescription\": \"réalisation app mobile\",\n                \"groupeId\": 1,\n                \"groupeNom\": \"Solo: Test STUDENT\",\n                \"membres\": [\n                    {\n                        \"id\": 3,\n                        \"nom\": \"Test\",\n                        \"prenom\": \"STUDENT\",\n                        \"email\": \"student@iit.tn\"\n                    }\n                ],\n                \"enseignantId\": 2,\n                \"enseignantNom\": \"Test TEACHER\",\n                \"enseignantEmail\": \"teacher@iit.tn\",\n                \"messageCount\": 0\n            },\n            {\n                \"id\": 3,\n                \"statut\": \"PENDING\",\n                \"anneeId\": \"2025-2026\",\n                \"sujetId\": 2,\n                \"sujetTitre\": \" test 2\",\n                \"sujetDescription\": \"réalisation app mobile\",\n                \"groupeId\": 1,\n                \"groupeNom\": \"Solo: Test STUDENT\",\n                \"membres\": [\n                    {\n                        \"id\": 3,\n                        \"nom\": \"Test\",\n                        \"prenom\": \"STUDENT\",\n                        \"email\": \"student@iit.tn\"\n                    }\n                ],\n                \"enseignantId\": 2,\n                \"enseignantNom\": \"Test TEACHER\",\n                \"enseignantEmail\": \"teacher@iit.tn\",\n                \"messageCount\": 0\n            },\n            {\n                \"id\": 2,\n                \"statut\": \"PENDING\",\n                \"anneeId\": \"2025-2026\",\n                \"sujetId\": 1,\n                \"sujetTitre\": \" test after a lot of refactoring\",\n                \"sujetDescription\": \"réalisation app mobile\",\n                \"groupeId\": 1,\n                \"groupeNom\": \"Solo: Test STUDENT\",\n                \"membres\": [\n                    {\n                        \"id\": 3,\n                        \"nom\": \"Test\",\n                        \"prenom\": \"STUDENT\",\n                        \"email\": \"student@iit.tn\"\n                    }\n                ],\n                \"enseignantId\": 2,\n                \"enseignantNom\": \"Test TEACHER\",\n                \"enseignantEmail\": \"teacher@iit.tn\",\n                \"messageCount\": 0\n            },\n            {\n                \"id\": 1,\n                \"statut\": \"PENDING\",\n                \"anneeId\": \"2025-2026\",\n                \"sujetId\": 4,\n                \"sujetTitre\": \"Développement d'une autre application\",\n                \"sujetDescription\": \"Conception et réalisation d'une application mobile.\",\n                \"groupeId\": 1,\n                \"groupeNom\": \"Solo: Test STUDENT\",\n                \"membres\": [\n                    {\n                        \"id\": 3,\n                        \"nom\": \"Test\",\n                        \"prenom\": \"STUDENT\",\n                        \"email\": \"student@iit.tn\"\n                    }\n                ],\n                \"enseignantId\": 2,\n                \"enseignantNom\": \"Test TEACHER\",\n                \"enseignantEmail\": \"teacher@iit.tn\",\n                \"messageCount\": 0\n            }\n        ],\n        \"pageable\": {\n            \"pageNumber\": 0,\n            \"pageSize\": 10,\n            \"sort\": {\n                \"empty\": false,\n                \"unsorted\": false,\n                \"sorted\": true\n            },\n            \"offset\": 0,\n            \"unpaged\": false,\n            \"paged\": true\n        },\n        \"totalPages\": 1,\n        \"totalElements\": 4,\n        \"last\": true,\n        \"size\": 10,\n        \"number\": 0,\n        \"sort\": {\n            \"empty\": false,\n            \"unsorted\": false,\n            \"sorted\": true\n        },\n        \"numberOfElements\": 4,\n        \"first\": true,\n        \"empty\": false\n    },\n    \"errorCode\": null\n}"
+            }
+          ]
+        },
+        {
+          "name": "Accepter",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{achref}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{localUrl}}{{candidature}}/1/accepter",
+              "host": [
+                "{{localUrl}}{{candidature}}"
+              ],
+              "path": [
+                "1",
+                "accepter"
+              ]
+            },
+            "description": "Accepts a student's candidature for an internship subject, identified by the candidature ID in the URL path (e.g., `/candidature/1/accepter`). Used by teachers or administrators to approve an application. Once accepted, the student is assigned to the subject."
+          },
+          "response": []
+        },
+        {
+          "name": "annuler Candidature",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{localUrl}}{{candidature}}/2",
+              "host": [
+                "{{localUrl}}{{candidature}}"
+              ],
+              "path": [
+                "2"
+              ]
+            },
+            "description": "Cancels and removes a candidature identified by its ID in the URL path (e.g., `/candidature/2`). Used by students to withdraw their application before it is processed. This action is irreversible and removes the candidature record from the system."
+          },
+          "response": []
+        },
+        {
+          "name": "Clarifier",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{teacherToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"content\": \"Veuillez préciser la partie concernant l'architecture microservices dans votre proposition.\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{localUrl}}{{candidature}}/1/clarifier",
+              "host": [
+                "{{localUrl}}{{candidature}}"
+              ],
+              "path": [
+                "1",
+                "clarifier"
+              ]
+            },
+            "description": "Requests clarification on a candidature identified by its ID in the URL path (e.g., `/candidature/1/clarifier`). Used by teachers or administrators to ask the student for additional information before making a decision. Updates the candidature status to reflect the pending clarification."
+          },
+          "response": []
+        },
+        {
+          "name": "Refuser",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{teacherToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{localUrl}}{{candidature}}/5/refuser",
+              "host": [
+                "{{localUrl}}{{candidature}}"
+              ],
+              "path": [
+                "5",
+                "refuser"
+              ]
+            },
+            "description": "Rejects a student's candidature for an internship subject, identified by the candidature ID in the URL path (e.g., `/candidature/5/refuser`). Used by teachers or administrators to decline an application. The student is notified and the candidature status is updated to refused."
+          },
+          "response": []
+        },
+        {
+          "name": "Cand Archive",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoiRU5TRUlHTkFOVCIsImlkIjoyLCJzdWIiOiJ0ZWFjaGVyQGlpdC50biIsImlhdCI6MTc3OTA1OTQ2MCwiZXhwIjoxNzg5NDI3NDYwfQ.0Xc-ZF-V1Hx--k-bjb_Qgcb41bNWCtkVBOoUsxigouM",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{localUrl}}{{candidature}}/archive/2025-2026",
+              "host": [
+                "{{localUrl}}{{candidature}}"
+              ],
+              "path": [
+                "archive",
+                "2025-2026"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": "Contains endpoints for managing student candidatures (applications) for internship subjects. Students can apply to subjects, view their own applications, and cancel them. Teachers and administrators can accept, refuse, or request clarification on candidatures. Candidature IDs are passed as path variables for status-change operations."
+    },
+    {
+      "name": "Messagerie",
+      "item": [
+        {
+          "name": "Send Message",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"content\": \"what happend\",\r\n    \"fileLink\": \"https://votre-cloud-storage.com/plan_conception.pdf\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{localUrl}}{{message}}/1",
+              "host": [
+                "{{localUrl}}{{message}}"
+              ],
+              "path": [
+                "1"
+              ]
+            },
+            "description": "Sends a message in a conversation thread identified by the conversation/subject ID in the URL path (e.g., `/message/1`). Used by students and teachers to communicate within the context of an internship subject or candidature. The message content is sent in the request body."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{localUrl}}{{message}}/2",
+              "host": [
+                "{{localUrl}}{{message}}"
+              ],
+              "path": [
+                "2"
+              ]
+            },
+            "description": "Deletes a specific message identified by its ID in the URL path (e.g., `/message/2`). Used by the message author or an administrator to remove a message from a conversation thread. This action is permanent and cannot be undone."
+          },
+          "response": []
+        },
+        {
+          "name": "getAll",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{localUrl}}{{message}}/1/all?page=2",
+              "host": [
+                "{{localUrl}}{{message}}"
+              ],
+              "path": [
+                "1",
+                "all"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "2"
+                }
+              ]
+            },
+            "description": "Retrieves all messages in a conversation thread identified by the subject/conversation ID in the URL path (e.g., `/message/1/all`). Supports pagination via the `page` query parameter (e.g., `?page=2`). Used by students and teachers to view the full message history of a thread."
+          },
+          "response": []
+        }
+      ],
+      "description": "Contains endpoints for the internal messaging system, enabling communication between students and teachers within the context of internship subjects. Users can send messages to a conversation thread, retrieve paginated message history, and delete individual messages. Conversation threads are identified by a subject or thread ID passed as a path variable."
+    },
+    {
+      "name": "Affectation",
+      "item": [
+        {
+          "name": "Teacher Workload",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{hamdi}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{localUrl}}{{affectations}}/workload?teacherId=2",
+              "host": [
+                "{{localUrl}}{{affectations}}"
+              ],
+              "path": [
+                "workload"
+              ],
+              "query": [
+                {
+                  "key": "teacherId",
+                  "value": "2"
+                }
+              ]
+            },
+            "description": "Retrieves the workload summary for the currently authenticated teacher, showing how many students they are supervising across their assigned internship subjects. Used by teachers and administrators to monitor supervision capacity and balance assignments."
+          },
+          "response": []
+        },
+        {
+          "name": "get my affectation",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{teacherToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{localUrl}}{{affectations}}",
+              "host": [
+                "{{localUrl}}{{affectations}}"
+              ]
+            },
+            "description": "Retrieves the internship affectation (assignment) for the currently authenticated student. Returns details about the subject, supervising teacher, and current status of the internship. The student's identity is derived from the JWT token."
+          },
+          "response": []
+        },
+        {
+          "name": "getUnassigned",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{teacherToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{localUrl}}{{affectations}}/unassigned",
+              "host": [
+                "{{localUrl}}{{affectations}}"
+              ],
+              "path": [
+                "unassigned"
+              ]
+            },
+            "description": "Retrieves a list of students who have accepted candidatures but have not yet been formally assigned to an internship subject. Used by administrators to identify and process pending affectations. Helps ensure no student falls through the cracks during the assignment phase."
+          },
+          "response": []
+        },
+        {
+          "name": "abort",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{teacherToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{localUrl}}{{affectations}}/3/abort",
+              "host": [
+                "{{localUrl}}{{affectations}}"
+              ],
+              "path": [
+                "3",
+                "abort"
+              ]
+            },
+            "description": "Aborts (cancels) an active internship affectation identified by its ID in the URL path (e.g., `/affectations/6/abort`). Used by administrators to terminate an ongoing assignment before completion. This action updates the affectation status and may free up the subject for reassignment."
+          },
+          "response": []
+        },
+        {
+          "name": "Finish",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{teacherToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{localUrl}}{{affectations}}/7/complete",
+              "host": [
+                "{{localUrl}}{{affectations}}"
+              ],
+              "path": [
+                "7",
+                "complete"
+              ]
+            },
+            "description": "Marks an internship affectation as completed, identified by its ID in the URL path (e.g., `/affectations/7/complete`). Used by teachers or administrators to officially close out an internship once the student has finished. Updates the affectation status to completed."
+          },
+          "response": []
+        },
+        {
+          "name": "stats",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{teacherToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{localUrl}}{{affectations}}/stats/count",
+              "host": [
+                "{{localUrl}}{{affectations}}"
+              ],
+              "path": [
+                "stats",
+                "count"
+              ]
+            },
+            "description": "Returns aggregated statistics about internship affectations, including counts by status (e.g., active, completed, aborted). Used by administrators and coordinators to get a high-level overview of the internship program's progress and distribution."
+          },
+          "response": []
+        },
+        {
+          "name": "Student Afectation",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{teacherToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{localUrl}}{{affectations}}/workload",
+              "host": [
+                "{{localUrl}}{{affectations}}"
+              ],
+              "path": [
+                "workload"
+              ]
+            },
+            "description": "Retrieves the affectation workload from a student's perspective, showing the distribution of students across internship subjects. Used by administrators and coordinators to monitor how students are distributed among available subjects and supervising teachers."
+          },
+          "response": []
+        },
+        {
+          "name": "my affectation",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{azzabi}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{localUrl}}{{affectations}}",
+              "host": [
+                "{{localUrl}}{{affectations}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Archive",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoiRU5TRUlHTkFOVCIsImlkIjoyLCJzdWIiOiJ0ZWFjaGVyQGlpdC50biIsImlhdCI6MTc3OTA1OTQ2MCwiZXhwIjoxNzg5NDI3NDYwfQ.0Xc-ZF-V1Hx--k-bjb_Qgcb41bNWCtkVBOoUsxigouM",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{localUrl}}{{affectations}}/archive/2024-2025",
+              "host": [
+                "{{localUrl}}{{affectations}}"
+              ],
+              "path": [
+                "archive",
+                "2024-2025"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": "Contains endpoints for managing internship affectations (formal assignments of students to internship subjects). Administrators can view unassigned students, abort active affectations, and mark them as complete. Teachers can check their supervision workload. Students can view their own affectation. Statistical endpoints provide aggregate counts for program-level reporting."
+    },
+    {
+      "name": "Tasks",
+      "item": [
+        {
+          "name": "Create",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{hamdi}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"description\": \"Prepare the mid-term internship report version 2\",\r\n  \"deadline\": \"2026-05-15T23:59:59\",\r\n  \"priorite\": \"HIGH\",\r\n  \"affectationId\": 1\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{localUrl}}{{tasks}}",
+              "host": [
+                "{{localUrl}}{{tasks}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "getall",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{hamdi}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{localUrl}}{{tasks}}/affectation/1",
+              "host": [
+                "{{localUrl}}{{tasks}}"
+              ],
+              "path": [
+                "affectation",
+                "1"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "update status",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{hamdi}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{localUrl}}{{tasks}}/3/status?completed=true",
+              "host": [
+                "{{localUrl}}{{tasks}}"
+              ],
+              "path": [
+                "3",
+                "status"
+              ],
+              "query": [
+                {
+                  "key": "completed",
+                  "value": "true"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "progress",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{localUrl}}{{tasks}}/affectation/1/progress",
+              "host": [
+                "{{localUrl}}{{tasks}}"
+              ],
+              "path": [
+                "affectation",
+                "1",
+                "progress"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "RendezVous",
+      "item": [
+        {
+          "name": "create",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{hamdi}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"affectationId\": 2,\r\n  \"dateHeure\": \"2026-09-12T11:30:00\",\r\n  \"lieu\": \"foug zebbi\",\r\n  \"objet\": \"naan din zebbi\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{localUrl}}{{meetings}}",
+              "host": [
+                "{{localUrl}}{{meetings}}"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "create",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n  \"affectationId\": 1,\r\n  \"dateHeure\": \"2026-05-04T10:00:00\",\r\n  \"lieu\": \"foug zebbi\",\r\n  \"objet\": \"naan din zebbi\"\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{localUrl}}{{meetings}}",
+                  "host": [
+                    "{{localUrl}}{{meetings}}"
+                  ]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "Vary",
+                  "value": "Origin"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Access-Control-Request-Method"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Access-Control-Request-Headers"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-XSS-Protection",
+                  "value": "0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, no-store, max-age=0, must-revalidate"
+                },
+                {
+                  "key": "Pragma",
+                  "value": "no-cache"
+                },
+                {
+                  "key": "Expires",
+                  "value": "0"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "DENY"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Transfer-Encoding",
+                  "value": "chunked"
+                },
+                {
+                  "key": "Date",
+                  "value": "Fri, 01 May 2026 22:20:43 GMT"
+                },
+                {
+                  "key": "Keep-Alive",
+                  "value": "timeout=60"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"id\": 23,\n    \"dateHeure\": \"2026-05-04T10:00:00\",\n    \"lieu\": \"foug zebbi\",\n    \"objet\": \"naan din zebbi\",\n    \"creePar\": \"ETUDIANT\",\n    \"creatorName\": \"jecem zayati\",\n    \"status\": \"PENDING\",\n    \"affectationId\": 1\n}"
+            }
+          ]
+        },
+        {
+          "name": "get",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jecem}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{localUrl}}{{meetings}}/affectation/2",
+              "host": [
+                "{{localUrl}}{{meetings}}"
+              ],
+              "path": [
+                "affectation",
+                "2"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "delete",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{teacherToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{localUrl}}{{meetings}}/14",
+              "host": [
+                "{{localUrl}}{{meetings}}"
+              ],
+              "path": [
+                "14"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "update status",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{achref}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{localUrl}}{{meetings}}/3/status?status=CONFIRMED",
+              "host": [
+                "{{localUrl}}{{meetings}}"
+              ],
+              "path": [
+                "3",
+                "status"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "CONFIRMED"
+                },
+                {
+                  "key": "status",
+                  "value": "CANCELLED",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "REFUSED",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "update status",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "{{localUrl}}{{meetings}}/22/status?status=CONFIRMED",
+                  "host": [
+                    "{{localUrl}}{{meetings}}"
+                  ],
+                  "path": [
+                    "22",
+                    "status"
+                  ],
+                  "query": [
+                    {
+                      "key": "status",
+                      "value": "CONFIRMED"
+                    },
+                    {
+                      "key": "status",
+                      "value": "CANCELLED",
+                      "disabled": true
+                    },
+                    {
+                      "key": "status",
+                      "value": "REFUSED",
+                      "disabled": true
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "Vary",
+                  "value": "Origin"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Access-Control-Request-Method"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Access-Control-Request-Headers"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-XSS-Protection",
+                  "value": "0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, no-store, max-age=0, must-revalidate"
+                },
+                {
+                  "key": "Pragma",
+                  "value": "no-cache"
+                },
+                {
+                  "key": "Expires",
+                  "value": "0"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "DENY"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Transfer-Encoding",
+                  "value": "chunked"
+                },
+                {
+                  "key": "Date",
+                  "value": "Fri, 01 May 2026 22:20:29 GMT"
+                },
+                {
+                  "key": "Keep-Alive",
+                  "value": "timeout=60"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"id\": 22,\n    \"dateHeure\": \"2026-05-05T10:00:00\",\n    \"lieu\": \"foug zebbi\",\n    \"objet\": \"naan din zebbi\",\n    \"creePar\": \"ETUDIANT\",\n    \"creatorName\": \"jecem zayati\",\n    \"status\": \"CONFIRMED\",\n    \"affectationId\": 1\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Files",
+      "item": [
+        {
+          "name": "upload",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{achref}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "uuid": "6fbc6e30-691c-4e3b-811b-1e73b6db1498",
+                  "src": "/C:/Users/lenovo/Downloads/doc_api_exp_tranfert.pdf"
+                },
+                {
+                  "key": "affectationId",
+                  "value": "2",
+                  "type": "text",
+                  "uuid": "b44797db-7db0-4ebf-8c2b-d7b921d7a796"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{localUrl}}{{files}}/upload",
+              "host": [
+                "{{localUrl}}{{files}}"
+              ],
+              "path": [
+                "upload"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Download",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{hamdi}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{localUrl}}{{files}}/download/5",
+              "host": [
+                "{{localUrl}}{{files}}"
+              ],
+              "path": [
+                "download",
+                "5"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "getall",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{hamdi}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{localUrl}}{{files}}/affectation/2?page=0&size=10",
+              "host": [
+                "{{localUrl}}{{files}}"
+              ],
+              "path": [
+                "affectation",
+                "2"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "delete",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{achref}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{localUrl}}{{files}}/4",
+              "host": [
+                "{{localUrl}}{{files}}"
+              ],
+              "path": [
+                "4"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "localUrl",
+      "value": ""
+    },
+    {
+      "key": "auth",
+      "value": ""
+    },
+    {
+      "key": "users",
+      "value": ""
+    },
+    {
+      "key": "subjects",
+      "value": ""
+    },
+    {
+      "key": "candidature",
+      "value": ""
+    },
+    {
+      "key": "message",
+      "value": ""
+    },
+    {
+      "key": "affectations",
+      "value": ""
+    },
+    {
+      "key": "tasks",
+      "value": ""
+    },
+    {
+      "key": "meetings",
+      "value": ""
+    },
+    {
+      "key": "studentToken",
+      "value": ""
+    },
+    {
+      "key": "teacherToken",
+      "value": ""
+    },
+    {
+      "key": "teacherNotRespToken",
+      "value": ""
+    },
+    {
+      "key": "adminToken",
+      "value": ""
+    },
+    {
+      "key": "2studToken",
+      "value": ""
+    },
+    {
+      "key": "achref",
+      "value": ""
+    },
+    {
+      "key": "ahmed",
+      "value": ""
+    },
+    {
+      "key": "jecem",
+      "value": ""
+    },
+    {
+      "key": "hamdi",
+      "value": ""
+    },
+    {
+      "key": "files",
+      "value": ""
+    }
+  ]
+}
